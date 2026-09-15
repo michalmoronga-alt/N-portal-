@@ -2,7 +2,7 @@
 
 Tri AI-generované koncepčné plachty z úvodnej diskusie. Každá obsahuje Station, SKP panel a štúdiu ikon.
 
-**Používateľ preferuje B a C. Finálny štýl ani presné rozloženie zatiaľ nie sú vybrané.**
+**Rozhodnuté 15. 9. 2026:** základ je **B (Modern)**, posunutý do frosted glass nad fotografiou hmlistého lesa (`app/public/bg.jpg`, originál `docs/assets/bg-original.jpg`). Skutočné rozloženie panela je v [REWORK.md](REWORK.md) a v mocku `app/public/mock3.html`; tieto plachty ostávajú ako úvodná inšpirácia.
 
 V repozitári sú optimalizované náhľady 640 × 480 px; originálne PNG majú 1448 × 1086 px a sú priložené v konverzácii / sprievodnom ZIP balíku. Ide o vizuálnu inšpiráciu, nie snímky fungujúcej aplikácie ani hotové ikony.
 

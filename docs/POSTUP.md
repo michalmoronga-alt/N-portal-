@@ -1,14 +1,13 @@
 # Postup a aktuálny stav
 
-**Aktuálne (15. 9. 2026 večer):** smer zmenený na PWA + lokálna služba ([SMER.md](SMER.md)). **E0 je hotové a prešlo na reálnom mobile** (služba `service/`, PWA `app/`, prijímač `sketchup/`): zameranie výberu, prázdny výber, viac objektov, a hlavne klávesnica aj myš zostávajú v SketchUpe bez klikania. **E1 (Station + SKP s pásom) je postavené a overené na PC; čaká na test na mobile.** Návod na spustenie je rovnaký ako pre E0 (nižšie); po zmene kódu stačí na mobile obnoviť stránku.
+**Aktuálne (15. 9. 2026 neskoro večer):** V1 je funkčná a používaná. Hotové a overené na mobile: E0 (zamerať výber), E1 (Station), E2 (pohľady), E3 (izolovať, skryté objekty; tagy mimo V1), E4 (AUTO režim, viac relácií), E5 (pohľad potiahnutím, ISO, X‑Ray), E6 (hlasitosť PC), automatický štart služby, LED spätná väzba, E1b (vizuálny rework, 1. kolo). Kompletné záznamy sú v tabuľke Záznamy nižšie. **Ďalej: Michal testuje v bežnej práci a prinesie postrehy.**
 
-## Ako spustiť test E0 (Michal)
+## Ako to spustiť
 
-1. **Služba na PC:** v priečinku repa spusti `powershell -ExecutionPolicy Bypass -File tools\start-service.ps1`. Vypíše adresu pre mobil v tvare `http://192.168.0.101:8790/?t=KÓD`. Okno nechaj otvorené (alebo služba už beží z testu agenta).
+1. **Služba na PC** sa spúšťa sama po prihlásení (Plánovač úloh „N-portal service“). Ak nebeží: `powershell -ExecutionPolicy Bypass -File tools\start-service.ps1` – zostaví PWA, službu a C# pomocníkov a vypíše adresu pre mobil v tvare `http://192.168.0.101:8790/?t=KÓD`. Kód je aj v `C:\Users\PC\.n-portal\service\config.json`.
 2. **SketchUp:** prijímač sa načíta pri štarte SketchUpu 2026 (Extensions > N-portal E0). Ak SketchUp už beží a prijímač nie, Ruby konzola: `load 'C:/Users/PC/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/nportal_e0/main.rb'`.
-3. **Mobil, jednorazovo (cesta A):** v Chrome otvor `chrome://flags/#unsafely-treat-insecure-origin-as-secure`, do poľa napíš `http://192.168.0.101:8790`, nastav Enabled, reštartuj Chrome. Bez toho funguje tlačidlo tiež, ale nie celá obrazovka bez lišty a držanie displeja.
-4. **Mobil:** otvor adresu z bodu 1 (s `?t=KÓD`). Ikonou ⛶ vpravo hore prepni na celú obrazovku. Voliteľne Chrome menu > „Pridať na plochu“.
-5. Prejdi kontrolný zoznam E0 a zapíš výsledky do tabuľky nižšie.
+3. **Mobil, jednorazovo:** v Chrome `chrome://flags/#unsafely-treat-insecure-origin-as-secure` = `http://192.168.0.101:8790`, Enabled, reštart Chrome (bezpečný kontext pre celú obrazovku a držanie displeja). Hotové.
+4. **Mobil:** otvor adresu z bodu 1 (s `?t=KÓD`), voliteľne Chrome menu > „Pridať na plochu“. Celá obrazovka je v nastaveniach (⚙). Po zmene kódu stačí stránku obnoviť.
 
 Dátový priečinok (povely, stav, logy): `C:\Users\PC\.n-portal`. Odstránenie experimentu: zmazať tento priečinok, `nportal_e0.rb` + `nportal_e0\` z Plugins SketchUpu 2026 a ukončiť službu.
 

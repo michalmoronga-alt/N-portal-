@@ -1,6 +1,6 @@
 # Kontext a zadanie
 
-Zápis úvodnej diskusie, 15. 9. 2026. Projekt zatiaľ slúži na dokumentáciu, nie na nasadenie.
+Zápis úvodnej diskusie, 15. 9. 2026, priebežne dopĺňaný. **Aktuálny stav:** V1 je postavená a používaná (E0–E6 + vizuálny rework, pozri [POSTUP.md](POSTUP.md)). Tento dokument zachytáva pôvodné zadanie, prvé testy a pravidlá, ktoré stále platia; časti o Rainmeteri sú historické.
 
 ## Východisko z praktického testu
 

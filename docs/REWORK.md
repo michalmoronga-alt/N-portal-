@@ -1,6 +1,6 @@
 # Návrh UI/UX reworku (E1b)
 
-Stav k 15. 9. 2026. Návrh agenta na diskusiu; nič z toho nie je implementované v paneli. Interaktívny mock: `app/public/mock2.html` (na mobile `http://192.168.0.101:8790/mock2.html`).
+Návrh agenta z 15. 9. 2026 a rozhodnutia Michala (kap. 6). **1. kolo reworku je implementované v paneli** (commit „feat(E1b)“); kapitoly 1–5 ostávajú ako zásady a zásobník nápadov. Mocky: `app/public/mock2.html` (prvý návrh, 3 varianty prechodu) a `mock3.html` (podľa rozhodnutí: sklo, obrázok, slide, zúžený Station).
 
 ## 1. Zásady, ktoré by som držal
 

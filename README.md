@@ -1,41 +1,60 @@
 # N-portal
 
-Dotykový pracovný panel NOXUN pre starší mobil používaný cez spacedesk ako tretí monitor PC.
+Dotykový pracovný panel NOXUN: starší mobil (IIIF150 Air1) ako druhá obrazovka k PC. Ovláda SketchUp jedným dotykom, ukazuje čas, usage Claude/Codex a hudbu, reaguje na to, čo máš práve na PC otvorené.
 
-**Stav k 15. 9. 2026:** smer zmenený na **PWA na mobile + lokálna služba na PC** (dôvod: test D0 ukázal, že dotyk cez spacedesk presúva kurzor a fokus). Hotové a na mobile overené: E0 (Zamerať výber), E1 (Station: čas, usage, hudba), E2 (pohľady), E3 (izolovať/obnoviť, skryté objekty; tagy mimo V1). E4 (AUTO režim podľa aktívneho okna, viac relácií SketchUpu) je postavené a overené na PC. Stav a záznamy testov sú v [Postupe](docs/POSTUP.md). Ďalšie etapy nezačínať bez potvrdenia rozsahu.
+**Stav k 15. 9. 2026:** V1 je funkčná a denne používaná. Hotové a overené na mobile: E0 až E6 a prvé kolo vizuálneho reworku (E1b). Podrobnosti a záznamy testov sú v [Postupe](docs/POSTUP.md). Ďalšie úpravy podľa postrehov z používania.
 
-## Časti
+## Ako to funguje
 
-| Priečinok | Obsah |
-|---|---|
-| `app/` | PWA pre mobil (Vite + React + TypeScript). `npm run build` → `app/dist`, servuje ju služba. |
-| `service/` | Lokálna služba na PC (Node + TypeScript): servuje PWA, WebSocket s tokenom, prepojenie na SketchUp. |
-| `sketchup/` | Ruby prijímač povelov pre SketchUp 2026 (zoznam povolených akcií, súborový protokol). |
-| `tools/` | `start-service.ps1` (zostaví a spustí službu ručne), `install-autostart.ps1` / `uninstall-autostart.ps1` (automatický štart služby po prihlásení, bez okna, s reštartom pri páde), `install-sketchup.ps1` (skopíruje prijímač do SketchUpu). |
-| `docs/` | Dokumentácia. |
+```text
+mobil (PWA v Chrome, celá obrazovka)
+   │  Wi‑Fi, WebSocket s párovacím kódom
+PC služba (Node)  ──  aktívne okno, hudba a hlasitosť (Windows), usage (súbor z NOXUN AI Usage)
+   │  súbory v %USERPROFILE%\.n-portal\e0 (povely a stav, na proces)
+SketchUp 2026  ──  Ruby prijímač: len povolené akcie, nič iné
+```
 
-Dáta za behu: `C:\Users\<meno>\.n-portal` (povely, stav, logy, konfigurácia služby s tokenom).
+Mobil nie je monitor Windows (žiadny spacedesk), preto dotyk nikdy neukradne kurzor ani klávesnicu zo SketchUpu.
 
-## Dva režimy
+## Čo panel vie
 
 | Režim | Obsah |
 |---|---|
-| **Station** | Čas, dátum, usage Codex/Claude a ovládanie hudby. Funguje nezávisle od SketchUpu. |
-| **SKP** | Veľké dotykové tlačidlá pre SketchUp; čas, usage a základné hudobné ovládanie zostanú v kompaktnom páse. |
+| **Station** | Hodiny s dňom a dátumom, dva usage kruhy (Codex týždeň; Claude týždeň + 5h prstenec) s detailom po potiahnutí (resety, odpočet do resetu 5h, stav účtu), hudba z Windows s obrázkom skladby, ovládanie prehrávania, hlasitosť PC ťahom po hornom okraji karty. |
+| **SKP** | Zúžený Station v bočnom páse a 8 dlaždíc: Zamerať výber, Pohľad (potiahnutie hore/dole/vľavo/vpravo = zhora/spredu/zľava/sprava), ISO, X‑Ray, Predošlý pohľad, Celý model, Izolovať/Obnoviť, Skryté objekty. Výsledok povelu ako toast. |
+| **AUTO** | Aktívny SketchUp na PC → SKP, iná aplikácia → Station, Chrome → väčší prehrávač. Pri dvoch otvorených SketchUpoch idú povely do toho, v ktorom si naposledy klikol. |
 
-Smer: **PWA na mobile + lokálna služba na PC + Ruby prijímač v SketchUpe** (pozri [Analýzu smeru](docs/SMER.md)). Nie druhý Inspector ani nová Android aplikácia.
+Ďalšie: spätná väzba zadnými LED telefónu (nepočuteľný tón cez prehrávač), automatický štart služby po prihlásení do Windows, nastavenia pod ozubeným kolieskom (režim, LED, animácie, celá obrazovka), rýchle prepnutie potiahnutím po hornej lište.
+
+**Mimo V1 (rozhodnuté):** tagy, kontext výberu z NOXUN Engine (po jeho dokončení), USB spojenie. Odložené: priebeh skladby, gestá na obale, preusporiadanie dlaždíc.
+
+## Spustenie
+
+1. **PC služba:** po prihlásení sa spúšťa sama (Plánovač úloh „N-portal service“, `tools/install-autostart.ps1`). Ručne: `powershell -ExecutionPolicy Bypass -File tools\start-service.ps1` – zostaví PWA, službu aj C# pomocníkov a vypíše adresu pre mobil.
+2. **SketchUp:** prijímač sa načíta pri štarte (Extensions > N-portal E0). Inštalácia: `tools/install-sketchup.ps1`.
+3. **Mobil:** v Chrome jednorazovo `chrome://flags/#unsafely-treat-insecure-origin-as-secure` = adresa PC (bezpečný kontext pre celú obrazovku a držanie displeja), potom otvoriť adresu z konzoly služby (`http://<IP PC>:8790/?t=<kód>`), voliteľne „Pridať na plochu“.
+
+Dáta za behu: `C:\Users\<meno>\.n-portal` (povely, stav, logy, konfigurácia služby s párovacím kódom). Odstránenie: zmazať tento priečinok, `nportal_e0.rb` + `nportal_e0\` z Plugins SketchUpu, `tools/uninstall-autostart.ps1`.
+
+## Časti repozitára
+
+| Priečinok | Obsah |
+|---|---|
+| `app/` | PWA pre mobil (Vite + React + TypeScript). `npm run build` → `app/dist`, servuje ju služba. V `public/` aj mocky (`mock*.html`, `led.html`) a pozadie `bg.jpg`. |
+| `service/` | Lokálna služba na PC (Node + TypeScript): servuje PWA, WebSocket s tokenom, témy sketchup / usage / media / foreground. `helper/` – C# pomocníci (hudba a hlasitosť cez Windows Media Session a Core Audio, aktívne okno), kompilované systémovým csc bez SDK. |
+| `sketchup/` | Ruby prijímač povelov pre SketchUp 2026 (zoznam povolených akcií, stav a povely na proces, história kamery, izolácia). |
+| `tools/` | Štart služby, automatický štart (Plánovač), inštalácia prijímača. |
+| `docs/` | Dokumentácia (nižšie). |
 
 ## Dokumentácia
 
 | Súbor | Účel |
 |---|---|
-| [Analýza smeru](docs/SMER.md) | **Zmena smeru 15. 9. 2026:** PWA na mobile + lokálna služba na PC namiesto Rainmeter + spacedesk. Čo použiť, čo vlastnou cestou, etapy nanovo. Na prejdenie. |
-| [Návrh reworku UI/UX](docs/REWORK.md) | Zásady, prechod Station ↔ SKP (3 varianty), 12 drobných funkcií, katalóg animácií. Interaktívny mock `app/public/mock2.html`. |
-| [Kontext](docs/KONTEXT.md) | Doterajšie testy, zadanie, architektúra a otvorené otázky. |
-| [Plán](docs/PLAN.md) | Malé etapy a odložené nápady. |
-| [Postup a stav](docs/POSTUP.md) | Najbližší test E0, kontrolný zoznam a záznam výsledkov. |
-| [Vizuálne návrhy](docs/VIZUALY.md) | A — Classic, B — Modern, C — Hyper Modern. **Preferované sú B a C; finálny výber ešte nepadol.** |
+| [Postup a stav](docs/POSTUP.md) | Aktuálny stav, návod na spustenie testu, kontrolné zoznamy a záznamy všetkých testov po etapách. |
+| [Plán](docs/PLAN.md) | Etapy E0–E6 a E1b so stavom, správanie príkazov, backlog a nápady mimo V1. |
+| [Analýza smeru](docs/SMER.md) | Prečo PWA + lokálna služba (a nie Rainmeter + spacedesk), čo použiť hotové a čo vlastné, spojenie mobil ↔ PC. |
+| [Návrh reworku UI/UX](docs/REWORK.md) | Zásady, prechody, drobné funkcie, katalóg animácií a rozhodnutia Michala k vzhľadu. |
+| [Kontext](docs/KONTEXT.md) | Pôvodné zadanie, prvé testy (D0), pravidlá a riziká. |
+| [Vizuálne návrhy](docs/VIZUALY.md) | Úvodné koncepty A/B/C; zvolený smer B posunutý do frosted glass. |
 
-**Najbližší krok:** test E0 na reálnom mobile. Overiť, že po dotyku v PWA ruka na myši a klávesnici pokračuje v SketchUpe bez akéhokoľvek klikania.
-
-Dokumentácia zachytáva úvodnú diskusiu; nápad ani návrh nie je implementovaná funkcia. Do verejného repozitára nepatria prihlasovacie tokeny, skutočná telemetria účtov ani zákaznícke modely.
+Do verejného repozitára nepatria prihlasovacie tokeny, skutočná telemetria účtov ani zákaznícke modely. Párovací kód služby je len v lokálnej konfigurácii.

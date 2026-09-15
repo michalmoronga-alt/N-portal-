@@ -1,6 +1,6 @@
 # Analýza smeru: PWA na mobile + lokálna služba na PC
 
-Stav k 15. 9. 2026. Podklad na spoločné prejdenie pred ďalšími testami. Nič z toho ešte nie je rozhodnuté ani postavené okrem toho, čo je výslovne označené ako hotové.
+Napísané 15. 9. 2026 ako podklad na rozhodnutie; **smer bol schválený a v ten istý deň postavený (E0–E6, rework)**. Dokument ostáva ako zdôvodnenie architektúry; aktuálny stav je v [POSTUP.md](POSTUP.md). Spojenie beží cestou A (Wi‑Fi + Chrome príznak); B (USB) je mimo V1.
 
 ## 1. Prečo meníme smer
 
