@@ -8,11 +8,71 @@
 // Kompilácia: helper/build.ps1 (csc + Windows *.winmd zo System32\WinMetadata, bez Windows SDK).
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using Windows.Foundation;
 using Windows.Media.Control;
 using Windows.Storage.Streams;
+
+// ---- Core Audio (hlasitosť PC) – minimálne COM rozhrania ----
+[ComImport, Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")] class MMDeviceEnumeratorCom { }
+[ComImport, Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IMMDeviceEnumerator
+{
+    int EnumAudioEndpoints(int dataFlow, int stateMask, out IntPtr devices);
+    int GetDefaultAudioEndpoint(int dataFlow, int role, out IMMDevice device);
+}
+[ComImport, Guid("D666063F-1587-4E43-81F1-B948E807363F"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IMMDevice
+{
+    int Activate(ref Guid iid, int clsCtx, IntPtr activationParams, [MarshalAs(UnmanagedType.IUnknown)] out object iface);
+}
+[ComImport, Guid("5CDF2C82-841E-4546-9722-0CF74078229A"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IAudioEndpointVolume
+{
+    int RegisterControlChangeNotify(IntPtr notify);
+    int UnregisterControlChangeNotify(IntPtr notify);
+    int GetChannelCount(out uint count);
+    int SetMasterVolumeLevel(float db, ref Guid ctx);
+    int SetMasterVolumeLevelScalar(float level, ref Guid ctx);
+    int GetMasterVolumeLevel(out float db);
+    int GetMasterVolumeLevelScalar(out float level);
+    int SetChannelVolumeLevel(uint ch, float db, ref Guid ctx);
+    int SetChannelVolumeLevelScalar(uint ch, float level, ref Guid ctx);
+    int GetChannelVolumeLevel(uint ch, out float db);
+    int GetChannelVolumeLevelScalar(uint ch, out float level);
+    int SetMute([MarshalAs(UnmanagedType.Bool)] bool mute, ref Guid ctx);
+    int GetMute([MarshalAs(UnmanagedType.Bool)] out bool mute);
+}
+
+static class PcVolume
+{
+    static IAudioEndpointVolume vol;
+    static IAudioEndpointVolume Get()
+    {
+        if (vol != null) return vol;
+        var en = (IMMDeviceEnumerator)new MMDeviceEnumeratorCom();
+        IMMDevice dev;
+        en.GetDefaultAudioEndpoint(0 /*eRender*/, 1 /*eMultimedia*/, out dev);
+        var iid = typeof(IAudioEndpointVolume).GUID;
+        object o;
+        dev.Activate(ref iid, 23 /*CLSCTX_ALL*/, IntPtr.Zero, out o);
+        vol = (IAudioEndpointVolume)o;
+        return vol;
+    }
+    public static void Reset() { vol = null; }
+    public static int Level() { float f; Get().GetMasterVolumeLevelScalar(out f); return (int)Math.Round(f * 100); }
+    public static bool Muted() { bool m; Get().GetMute(out m); return m; }
+    public static void Set(int pct)
+    {
+        var g = Guid.Empty;
+        float f = Math.Max(0, Math.Min(100, pct)) / 100f;
+        Get().SetMasterVolumeLevelScalar(f, ref g);
+        if (pct > 0 && Muted()) Get().SetMute(false, ref g);
+    }
+    public static void Mute(bool m) { var g = Guid.Empty; Get().SetMute(m, ref g); }
+}
 
 static class MediaWorker
 {
@@ -100,15 +160,53 @@ static class MediaWorker
         string lastKey = "";
         string lastThumbKey = "";
         string lastThumb = null;
+        int lastVol = -1;
+        bool lastMute = false;
 
         while (true)
         {
             try
             {
-                // --- povely ---
+                // --- hlasitosť PC: hlásiť pri zmene (aj keď ju zmení používateľ na PC) ---
+                try
+                {
+                    int lv = PcVolume.Level(); bool lm = PcVolume.Muted();
+                    if (lv != lastVol || lm != lastMute)
+                    {
+                        lastVol = lv; lastMute = lm;
+                        Emit("{\"type\":\"volume\",\"level\":" + lv + ",\"muted\":" + (lm ? "true" : "false") + "}");
+                    }
+                }
+                catch { PcVolume.Reset(); }
+
+                // --- povely: vybrať celý rad; z povelov hlasitosti platí len posledný (žiadne dobiehanie) ---
                 string cmd = null;
-                lock (gate) if (commands.Count > 0) cmd = commands.Dequeue();
-                if (cmd != null)
+                lock (gate)
+                {
+                    string lastVolCmd = null;
+                    var others = new Queue<string>();
+                    while (commands.Count > 0)
+                    {
+                        var c = commands.Dequeue();
+                        if (c.StartsWith("vol ")) lastVolCmd = c; else others.Enqueue(c);
+                    }
+                    if (lastVolCmd != null) others.Enqueue(lastVolCmd);
+                    if (others.Count > 0) { cmd = others.Dequeue(); while (others.Count > 0) commands.Enqueue(others.Dequeue()); }
+                }
+                if (cmd != null && (cmd.StartsWith("vol ") || cmd == "mute" || cmd == "unmute"))
+                {
+                    // hlasitosť PC (nezávislá od prehrávača)
+                    try
+                    {
+                        if (cmd == "mute") PcVolume.Mute(true);
+                        else if (cmd == "unmute") PcVolume.Mute(false);
+                        else { int pct; if (int.TryParse(cmd.Substring(4).Trim(), out pct)) PcVolume.Set(pct); }
+                        Emit("{\"type\":\"ack\",\"action\":" + J(cmd) + ",\"ok\":true}");
+                    }
+                    catch (Exception ex) { PcVolume.Reset(); Emit("{\"type\":\"ack\",\"action\":" + J(cmd) + ",\"ok\":false,\"error\":" + J(ex.Message) + "}"); }
+                    lastVol = -1; // vynútiť hlásenie
+                }
+                else if (cmd != null)
                 {
                     var cs = mgr.GetCurrentSession();
                     bool ok = false;
@@ -164,7 +262,8 @@ static class MediaWorker
                 lastKey = "";
                 Thread.Sleep(1000);
             }
-            Thread.Sleep(POLL_MS);
+            int pending; lock (gate) pending = commands.Count;
+            Thread.Sleep(pending > 0 ? 10 : POLL_MS);
         }
     }
 }

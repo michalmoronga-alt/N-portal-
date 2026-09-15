@@ -16,9 +16,11 @@ export interface MediaState {
   artist: string | null;
   album: string | null;
   thumb: string | null; // data URL obrázka skladby
+  volume: number | null; // hlasitosť PC 0–100 (hlavný výstup)
+  muted: boolean;
 }
 
-export const MEDIA_ACTIONS = new Set(['play', 'pause', 'toggle', 'next', 'prev']);
+export const MEDIA_ACTIONS = new Set(['play', 'pause', 'toggle', 'next', 'prev', 'mute', 'unmute']);
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const WORKER_EXE = path.resolve(here, '..', 'bin', 'media-worker.exe');
@@ -28,7 +30,7 @@ const CMD_FILE = path.join(SERVICE_DIR, 'media-cmd.txt');
 type Listener = (s: MediaState) => void;
 
 export class MediaBridge {
-  state: MediaState = { available: false, workerOk: false, app: null, status: null, title: null, artist: null, album: null, thumb: null };
+  state: MediaState = { available: false, workerOk: false, app: null, status: null, title: null, artist: null, album: null, thumb: null, volume: null, muted: false };
   private proc: ChildProcess | null = null;
   private useExe = false;
   private listeners: Listener[] = [];
@@ -53,6 +55,37 @@ export class MediaBridge {
     this.stopped = true;
     this.proc?.kill();
     this.proc = null;
+  }
+
+  private volTimer: NodeJS.Timeout | null = null;
+  private volPending: number | null = null;
+  private volLastSent = 0;
+  private static readonly VOL_MIN_GAP_MS = 150;
+
+  /** Nastaví hlasitosť PC (0–100). Rýchle zmeny počas ťahu zlučuje: najviac jedna hodnota za 150 ms, vždy posledná. */
+  setVolume(pct: number): boolean {
+    if (!Number.isFinite(pct) || !this.state.workerOk || !this.useExe || !this.proc?.stdin?.writable) return false;
+    const v = Math.max(0, Math.min(100, Math.round(pct)));
+    const now = Date.now();
+    const wait = MediaBridge.VOL_MIN_GAP_MS - (now - this.volLastSent);
+    if (wait <= 0 && this.volTimer === null) {
+      this.volLastSent = now;
+      this.proc.stdin.write(`vol ${v}\n`);
+      return true;
+    }
+    this.volPending = v;
+    if (this.volTimer === null) {
+      this.volTimer = setTimeout(() => {
+        this.volTimer = null;
+        const p = this.volPending;
+        this.volPending = null;
+        if (p !== null && this.proc?.stdin?.writable) {
+          this.volLastSent = Date.now();
+          this.proc.stdin.write(`vol ${p}\n`);
+        }
+      }, Math.max(wait, 10));
+    }
+    return true;
   }
 
   /** Pošle povel pracovníkovi (vykoná ho do ~250 ms). */
@@ -130,6 +163,7 @@ export class MediaBridge {
         break;
       case 'media':
         this.state = {
+          ...this.state,
           workerOk: true,
           available: msg.available === true,
           app: (msg.app as string) ?? null,
@@ -139,6 +173,10 @@ export class MediaBridge {
           album: (msg.album as string) ?? null,
           thumb: (msg.thumb as string) ?? null,
         };
+        this.emit();
+        break;
+      case 'volume':
+        this.state = { ...this.state, workerOk: true, volume: Number(msg.level), muted: msg.muted === true };
         this.emit();
         break;
       case 'ack':

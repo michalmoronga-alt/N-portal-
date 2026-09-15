@@ -10,7 +10,7 @@ const PREF_KEY = 'nportal.pref';
 const AUTO_DELAY_MS = 400; // ochrana proti preblikávaniu pri rýchlom Alt+Tab
 
 export default function App() {
-  const { connection, sketchup, usage, media, foreground, lastAck, sendCommand, sendMedia, hasToken } = useService();
+  const { connection, sketchup, usage, media, foreground, lastAck, sendCommand, sendMedia, sendVolume, hasToken } = useService();
   const [pref, setPref] = useState<Pref>(() => {
     try {
       const v = localStorage.getItem(PREF_KEY);
@@ -108,7 +108,7 @@ export default function App() {
       </header>
 
       {mode === 'station' ? (
-        <Station usage={usage} media={media} sendMedia={sendMedia} bigPlayer={bigPlayer} />
+        <Station usage={usage} media={media} sendMedia={sendMedia} sendVolume={sendVolume} bigPlayer={bigPlayer} />
       ) : (
         <Skp online={online} sketchup={sketchup} usage={usage} media={media} lastAck={lastAck} sendCommand={sendCommand} sendMedia={sendMedia} />
       )}

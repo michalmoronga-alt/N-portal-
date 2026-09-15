@@ -129,6 +129,20 @@ button { font: inherit; color: inherit; }
 .ctrl button:active { transform: scale(.88); opacity: .8; }
 .ctrl button:disabled { opacity: .3; }
 
+/* neviditeľný pás hlasitosti na hornom okraji hudobnej karty */
+.vol-strip { position: absolute; left: 0; right: 0; top: 0; height: 30%; z-index: 2; touch-action: none; cursor: ew-resize; }
+.vol-badge {
+  position: absolute; top: 2vh; left: 50%; transform: translate(-50%, -20%); z-index: 3;
+  display: flex; align-items: center; gap: 1.2vw; padding: 1vh 2vw;
+  background: rgba(11, 15, 23, .82); border: 1px solid var(--line); border-radius: 999px;
+  font-size: 3.2vh; font-weight: 700; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+}
+.vol-badge.show { opacity: 1; transform: translate(-50%, 0); }
+.vol-badge .vol-icon { font-size: 3.2vh; }
+.vol-badge .vol-pct { min-width: 4.2em; text-align: right; }
+.vol-badge .vol-bar { display: block; width: 18vw; height: 1.2vh; border-radius: 999px; background: #1f2a3d; overflow: hidden; }
+.vol-badge .vol-bar b { display: block; height: 100%; background: var(--blue2); transition: width .08s; }
+
 /* ---------- SKP ---------- */
 .skp { flex: 1; display: grid; grid-template-columns: 13% 1fr; gap: 2vw; min-height: 0; }
 .strip { display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 1.5vh .5vw; }

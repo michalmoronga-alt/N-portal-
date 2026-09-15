@@ -103,7 +103,7 @@ server.on('upgrade', (req, socket, head) => {
 
 type ClientMsg =
   | { type: 'command'; action: string; id?: string }
-  | { type: 'media'; action: string }
+  | { type: 'media'; action: string; value?: number }
   | { type: 'ping' };
 
 wss.on('connection', (ws, req) => {
@@ -125,8 +125,8 @@ wss.on('connection', (ws, req) => {
       return;
     }
     if (m.type === 'media') {
-      const ok = MEDIA_ACTIONS.has(m.action) && media.send(m.action);
-      if (!ok) log(`media povel odmietnutý: ${m.action}`);
+      const ok = m.action === 'volume' ? media.setVolume(Number(m.value)) : MEDIA_ACTIONS.has(m.action) && media.send(m.action);
+      if (!ok) log(`media povel odmietnutý: ${m.action} ${m.value ?? ''}`);
       return;
     }
     if (m.type === 'command') {

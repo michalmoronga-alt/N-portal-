@@ -2,15 +2,17 @@ import Ring from './Ring';
 import type { MediaState, UsageState } from './service';
 import { useClock, formatDateLong, formatReset } from './time';
 import { ledTap } from './ledPulse';
+import VolumeStrip from './VolumeStrip';
 
 interface Props {
   usage: UsageState | null;
   media: MediaState | null;
   sendMedia: (a: 'play' | 'pause' | 'toggle' | 'next' | 'prev') => void;
+  sendVolume: (pct: number) => void;
   bigPlayer?: boolean; // pri aktívnom Chrome: väčšia hudobná karta a ovládanie
 }
 
-export default function Station({ usage, media, sendMedia, bigPlayer }: Props) {
+export default function Station({ usage, media, sendMedia, sendVolume, bigPlayer }: Props) {
   const now = useClock();
   const hh = String(now.getHours()).padStart(2, '0');
   const mm = String(now.getMinutes()).padStart(2, '0');
@@ -47,6 +49,7 @@ export default function Station({ usage, media, sendMedia, bigPlayer }: Props) {
       <section className="card music" style={media?.thumb ? { ['--cover' as string]: `url(${media.thumb})` } : undefined}>
         <div className={`cover ${media?.thumb ? 'has' : ''}`} />
         <div className="shade" />
+        <VolumeStrip volume={media?.volume ?? null} onChange={sendVolume} />
         <div className="meta">
           {media?.available ? (
             <>

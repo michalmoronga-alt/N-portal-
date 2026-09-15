@@ -54,6 +54,8 @@ export interface MediaState {
   artist: string | null;
   album: string | null;
   thumb: string | null;
+  volume: number | null;
+  muted: boolean;
 }
 
 type ServerMsg =
@@ -167,11 +169,17 @@ export function useService() {
     return id;
   }, []);
 
-  const sendMedia = useCallback((action: 'play' | 'pause' | 'toggle' | 'next' | 'prev') => {
+  const sendMedia = useCallback((action: 'play' | 'pause' | 'toggle' | 'next' | 'prev' | 'mute' | 'unmute') => {
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify({ type: 'media', action }));
   }, []);
 
-  return { connection, sketchup, usage, media, foreground, lastAck, sendCommand, sendMedia, hasToken: !!tokenRef.current };
+  const sendVolume = useCallback((pct: number) => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: 'media', action: 'volume', value: Math.max(0, Math.min(100, Math.round(pct))) }));
+  }, []);
+
+  return { connection, sketchup, usage, media, foreground, lastAck, sendCommand, sendMedia, sendVolume, hasToken: !!tokenRef.current };
 }
