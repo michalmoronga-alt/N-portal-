@@ -11,7 +11,7 @@ const HEARTBEAT_MAX_SEC = 3;
 const TTL_MS = 2000;
 
 /** Akcie, ktoré služba pošle ďalej. Prijímač má vlastný zoznam; oba musia súhlasiť. */
-export const ALLOWED_ACTIONS = new Set(['focus_selection']);
+export const ALLOWED_ACTIONS = new Set(['focus_selection', 'view_top', 'view_front', 'view_left', 'view_previous', 'view_all']);
 
 export interface SketchUpLast {
   id: string;

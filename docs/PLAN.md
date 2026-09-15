@@ -11,7 +11,7 @@ Doplnené nápady na adaptívne rozhranie podľa aplikácie a výberu. Sú to bu
 | **E0 — dôkaz cesty** | PWA s jedným tlačidlom „Zamerať výber“ a ukazovateľom spojenia, lokálna služba na PC, Ruby prijímač. Pôvodné skiny a Engine nemeníme. **Postavené 15. 9. 2026, otestované na PC** (pozri POSTUP.md). | Na reálnom mobile: správny model, odozva, ruka na myši pokračuje bez klikania; chyba/odpojenie zrozumiteľné. |
 | **E1 — Station** | Čas, dátum, usage (Claude weekly + 5h, Codex weekly) zo súboru existujúceho skinu, hudba cez Windows Media Session (názov, play/pause, ďalšia/predošlá, obrázok skladby v pozadí karty). Ručný prepínač Station/SKP. Rozloženie podľa odsúhlaseného mocku (`app/public/mock.html`, 15. 9. 2026). | Čitateľnosť a dotyk na skutočnom mobile; stabilné prepínanie; Station funguje bez SketchUpu; displej sa neuspáva. |
 | **E1b — dotiahnutie UI** | Interaktívne prechody a animácie: plynulé prepnutie Station/SKP, animované kruhy usage, stlačenie dlaždíc, prechod obrázka skladby. Požiadavka Michala z 15. 9. 2026; môže ísť aj po E1, funkčnosť má prednosť. | Animácie neznižujú odozvu tlačidiel a nezaťažujú starší mobil. |
-| **E2 — navigácia** | Po jednom: zhora, spredu, zľava so zameraním výberu; predošlý pohľad a celý model. | Jednoznačné osi/projekcia, zachovaný výber, overenie na reálnej zákazke. |
+| **E2 — navigácia** | Zhora, spredu, zľava so zameraním výberu (bez výberu celý model); predošlý pohľad z vlastnej histórie kamery (posledných 20 zmien vyvolaných panelom, nie Undo modelu); celý model. Osi modelu, premietanie sa nemení. **Postavené 15. 9. 2026, overené na PC.** | Overenie na mobile a na reálnej zákazke; lokálne osi skrinky a rovnobežné premietanie zostávajú návrhy na neskôr. |
 | **E3 — viditeľnosť** | Po jednom: izolovať/obnoviť, obľúbené tagy, zobrazenie skrytých objektov. | Správne obnovenie pôvodného stavu a synchronizácia aj pri zmene priamo v SketchUpe. |
 
 E0 je samostatný technický experiment, nie hotová V1. Kandidát na prvý použiteľný základ je E1; presný obsah vydania sa určí podľa testov. Automatika, adaptívne rozloženie, história objektov a gestá sú mimo V1. Diagnostika ich vstupných signálov nie je ich implementácia.
@@ -66,6 +66,10 @@ Navrhované zúženie prvého experimentu, ešte na potvrdenie:
 - Prevnorené objekty nespoliehať sa iba na meno/definíciu. Potrebná identita modelu/relácie a konkrétnej inštancie vrátane cesty vnorenia. Prechod do iného editačného kontextu je samostatné rozšírenie, nie tichý vedľajší účinok kliknutia.
 - Pred vyvolaním overiť platnosť cieľa, viditeľnosť a kontext. Zmazaný alebo prestavaný objekt bezpečne zneaktívniť/odstrániť z histórie; nevyberať náhradu podľa podobného mena. Neodhaľovať automaticky objekty na vypnutom tagu.
 - Výber cez históriu nesmie generovať duplicitné karty ani spätnú slučku. Počet zmien kamery nemá meniť poradie histórie.
+
+### Pohľady jedným tlačidlom so swipe — mimo V1
+
+Nápad Michala (15. 9. 2026, po teste E2): namiesto samostatných dlaždíc Zhora / Spredu / Zľava jedna dlaždica „Pohľad“. Dotyk a potiahnutie hore = zhora, doľava = zľava, doprava = sprava, dole = spredu; krátke klepnutie = zamerať výber (alebo predošlý pohľad, na rozhodnutie). Uvoľní tri miesta v mriežke pre E3 a ďalšie. Otvorené: ako naznačiť smery na dlaždici, čo s „predošlým pohľadom“ a „celým modelom“, ochrana proti náhodnému potiahnutiu. Implementovať až po E3, keď budú známe všetky príkazy, ktoré sa do mriežky majú zmestiť.
 
 ### Gestá — mimo V1
 

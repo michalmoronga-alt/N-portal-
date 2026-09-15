@@ -19,11 +19,11 @@ interface Props {
 // Dlaždice: stále pozície. Aktívna je len akcia z hotovej etapy; ostatné sú náhľad budúcich etáp.
 const TILES: { action: string; name: string; stage: string; icon: React.ReactNode; enabled: boolean }[] = [
   { action: 'focus_selection', name: 'Zamerať výber', stage: 'E0', enabled: true, icon: <IconFocus /> },
-  { action: 'view_top', name: 'Zhora', stage: 'E2', enabled: false, icon: <IconTop /> },
-  { action: 'view_front', name: 'Spredu', stage: 'E2', enabled: false, icon: <IconBox /> },
-  { action: 'view_left', name: 'Zľava', stage: 'E2', enabled: false, icon: <IconBoxLeft /> },
-  { action: 'view_previous', name: 'Predošlý pohľad', stage: 'E2', enabled: false, icon: <IconUndo /> },
-  { action: 'view_all', name: 'Celý model', stage: 'E2', enabled: false, icon: <IconAll /> },
+  { action: 'view_top', name: 'Zhora', stage: 'E2', enabled: true, icon: <IconTop /> },
+  { action: 'view_front', name: 'Spredu', stage: 'E2', enabled: true, icon: <IconBox /> },
+  { action: 'view_left', name: 'Zľava', stage: 'E2', enabled: true, icon: <IconBoxLeft /> },
+  { action: 'view_previous', name: 'Predošlý pohľad', stage: 'E2', enabled: true, icon: <IconUndo /> },
+  { action: 'view_all', name: 'Celý model', stage: 'E2', enabled: true, icon: <IconAll /> },
   { action: 'isolate', name: 'Izolovať / obnoviť', stage: 'E3', enabled: false, icon: <IconEye /> },
   { action: 'tags', name: 'Tagy', stage: 'E3', enabled: false, icon: <IconTag /> },
 ];
@@ -32,6 +32,7 @@ export default function Skp({ online, sketchup, usage, media, lastAck, sendComma
   const now = useClock();
   const [flash, setFlash] = useState<Flash>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [activeAction, setActiveAction] = useState<string | null>(null); // dlaždica, ktorej patrí stav odoslané/výsledok
   const pendingSince = useRef(0);
   const seenLastId = useRef<string | null>(null);
   const [tick, setTick] = useState(Date.now());
@@ -89,6 +90,8 @@ export default function Skp({ online, sketchup, usage, media, lastAck, sendComma
     if (id) {
       pendingSince.current = Date.now();
       setPendingId('pending');
+      setActiveAction(action);
+      setFlash(null);
     }
   };
 
@@ -119,8 +122,8 @@ export default function Skp({ online, sketchup, usage, media, lastAck, sendComma
           {TILES.map((t) => {
             let cls = 'tile';
             if (!t.enabled) cls += ' off';
-            else if (t.action === 'focus_selection' && activeFlash) cls += ` ${activeFlash.kind}`;
-            else if (t.action === 'focus_selection' && pendingId) cls += ' sent';
+            else if (t.action === activeAction && activeFlash) cls += ` ${activeFlash.kind}`;
+            else if (t.action === activeAction && pendingId) cls += ' sent';
             else if (ready) cls += ' on';
             else cls += ' idle';
             return (

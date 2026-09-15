@@ -13,7 +13,7 @@ require 'fileutils'
 
 module NPortal
   module E0
-    VERSION        = '0.1.2'.freeze
+    VERSION        = '0.2.0'.freeze
     # Dátový priečinok je mimo AppData: balíčkové aplikácie (napr. Claude desktop) majú AppData
     # presmerované do súkromnej kópie a ich zápisy by SketchUp nevidel. Rovnaká cesta je v service/src/config.ts.
     DATA_ROOT      = (ENV['NPORTAL_DATA_DIR'] || File.join(Dir.home, '.n-portal')).tr('\\', '/').freeze
@@ -32,8 +32,16 @@ module NPortal
     ZOOM_MARGIN    = 1.15   # kamera o 15 % ďalej od výberu = okraj okolo zameraných objektov
 
     ALLOWED = {
-      'focus_selection' => :cmd_focus_selection
+      'focus_selection' => :cmd_focus_selection,
+      'view_top'        => :cmd_view_top,
+      'view_front'      => :cmd_view_front,
+      'view_left'       => :cmd_view_left,
+      'view_previous'   => :cmd_view_previous,
+      'view_all'        => :cmd_view_all
     }.freeze
+    HISTORY_MAX = 20
+
+    @history = [] unless defined?(@history)   # vlastná história kamery (len zmeny vyvolané panelom)
 
     @timer     = nil unless defined?(@timer)
     @status    = 'stopped' unless defined?(@status)   # running | standby | stopped
@@ -177,12 +185,93 @@ module NPortal
         return record('error', id, 'Nič nie je vybrané') if sel.empty?
 
         view = model.active_view
+        push_history(view.camera)
         view.zoom(sel)
         add_margin(view.camera)
         view.invalidate
 
-        n = sel.length
-        record('ok', id, "Zamerané: #{n} #{n == 1 ? 'objekt' : (n < 5 ? 'objekty' : 'objektov')}")
+        record('ok', id, "Zamerané: #{count_text(sel.length)}")
+      end
+
+      # Pohľady (E2): osi modelu, premietanie sa nemení, výber zostáva.
+      # S výberom sa zameria výber; bez výberu celý model (bez zmeny modelu, len kamera).
+      def cmd_view_top(model, id)
+        set_view(model, id, 'Zhora', Geom::Vector3d.new(0, 0, 1), Geom::Vector3d.new(0, 1, 0))
+      end
+
+      def cmd_view_front(model, id)
+        set_view(model, id, 'Spredu', Geom::Vector3d.new(0, -1, 0), Geom::Vector3d.new(0, 0, 1))
+      end
+
+      def cmd_view_left(model, id)
+        set_view(model, id, 'Zľava', Geom::Vector3d.new(-1, 0, 0), Geom::Vector3d.new(0, 0, 1))
+      end
+
+      def set_view(model, id, name, eye_dir, up)
+        view = model.active_view
+        cam  = view.camera
+        sel  = model.selection
+        bounds = sel.empty? ? model.bounds : selection_bounds(sel)
+        return record('error', id, "#{name}: model je prázdny") if bounds.empty?
+
+        push_history(cam)
+        center = bounds.center
+        dist   = [bounds.diagonal * 2.0, 1000.mm].max
+        cam.set(center.offset(eye_dir, dist), center, up)
+        if sel.empty?
+          view.zoom_extents
+        else
+          view.zoom(sel)
+        end
+        add_margin(view.camera)
+        view.invalidate
+        record('ok', id, sel.empty? ? "#{name}: celý model (nič nie je vybrané)" : "#{name}: #{count_text(sel.length)}")
+      end
+
+      # Predošlý pohľad: vráti kameru pred poslednou zmenou vyvolanou panelom. Nie je to Undo modelu.
+      def cmd_view_previous(model, id)
+        return record('error', id, 'Žiadny predošlý pohľad') if @history.empty?
+        view = model.active_view
+        h = @history.pop
+        cam = view.camera
+        cam.set(h[:eye], h[:target], h[:up])
+        cam.perspective = h[:perspective]
+        if h[:perspective]
+          cam.fov = h[:fov] if h[:fov]
+        else
+          cam.height = h[:height] if h[:height]
+        end
+        view.invalidate
+        record('ok', id, "Predošlý pohľad (zostáva #{@history.length})")
+      end
+
+      # Celý model: zoom extents, výber zostáva.
+      def cmd_view_all(model, id)
+        view = model.active_view
+        push_history(view.camera)
+        view.zoom_extents
+        view.invalidate
+        record('ok', id, 'Celý model')
+      end
+
+      def push_history(cam)
+        @history << {
+          eye: cam.eye, target: cam.target, up: cam.up,
+          perspective: cam.perspective?,
+          fov: (cam.perspective? ? cam.fov : nil),
+          height: (cam.perspective? ? nil : cam.height)
+        }
+        @history.shift while @history.length > HISTORY_MAX
+      end
+
+      def selection_bounds(sel)
+        b = Geom::BoundingBox.new
+        sel.each { |e| b.add(e.bounds) if e.respond_to?(:bounds) }
+        b
+      end
+
+      def count_text(n)
+        "#{n} #{n == 1 ? 'objekt' : (n < 5 ? 'objekty' : 'objektov')}"
       end
 
       def add_margin(camera)
