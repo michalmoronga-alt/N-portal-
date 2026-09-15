@@ -13,21 +13,20 @@ require 'fileutils'
 
 module NPortal
   module E0
-    VERSION        = '0.3.0'.freeze
+    VERSION        = '0.4.0'.freeze
     # Dátový priečinok je mimo AppData: balíčkové aplikácie (napr. Claude desktop) majú AppData
     # presmerované do súkromnej kópie a ich zápisy by SketchUp nevidel. Rovnaká cesta je v service/src/config.ts.
     DATA_ROOT      = (ENV['NPORTAL_DATA_DIR'] || File.join(Dir.home, '.n-portal')).tr('\\', '/').freeze
     DATA_DIR       = File.join(DATA_ROOT, 'e0').freeze
-    CMD_DIR        = File.join(DATA_DIR, 'cmd').freeze
-    STATE_FILE     = File.join(DATA_DIR, 'state.txt').freeze
-    LOCK_FILE      = File.join(DATA_DIR, 'receiver.lock').freeze
+    # Každá relácia SketchUpu (proces) má vlastný stav a vlastný priečinok povelov (E4, viac relácií naraz).
+    PID            = Process.pid
+    CMD_DIR        = File.join(DATA_DIR, 'cmd', PID.to_s).freeze
+    STATE_FILE     = File.join(DATA_DIR, "state-#{PID}.txt").freeze
     LOG_FILE       = File.join(DATA_DIR, 'log.txt').freeze
     POLL_SEC       = 0.2
     HEARTBEAT_SEC  = 1.0
     DEFAULT_TTL_MS = 2000
     MAX_TTL_MS     = 10_000
-    LOCK_STALE_SEC = 5
-    STANDBY_RETRY_SEC = 2
     PROCESSED_MAX  = 200
     ZOOM_MARGIN    = 1.15   # kamera o 15 % ďalej od výberu = okraj okolo zameraných objektov
 
@@ -42,6 +41,13 @@ module NPortal
       'hidden_objects_toggle'  => :cmd_hidden_objects_toggle
     }.freeze
     HISTORY_MAX = 20
+
+    # Pri ukončení SketchUpu upratať stav relácie (inak by ju služba považovala za živú až do heartbeat limitu).
+    class QuitObserver < Sketchup::AppObserver
+      def onQuit
+        NPortal::E0.stop
+      end
+    end
 
     @history   = [] unless defined?(@history)    # vlastná história kamery (len zmeny vyvolané panelom)
     @isolation = nil unless defined?(@isolation) # { model_guid:, ids: [persistent_id…], at: } – čo izolácia skryla
@@ -62,46 +68,28 @@ module NPortal
       def start
         return puts('[N-portal E0] prijímač už beží') if running?
         FileUtils.mkdir_p(CMD_DIR)
-        if foreign_lock_alive?
-          unless @status == 'standby'
-            @status = 'standby'
-            log("standby: povely spracováva iná relácia SketchUpu (lock pid=#{lock_pid}); skúšam znova každé #{STANDBY_RETRY_SEC} s")
-            puts '[N-portal E0] standby – iná relácia SketchUpu už prijíma povely; prevezmem, keď skončí.'
-          end
-          # v pohotovosti pravidelne skúšať, či druhá relácia skončila (napr. zatvorený starší SketchUp)
-          @standby_timer ||= UI.start_timer(STANDBY_RETRY_SEC, true) { start unless running? }
-          return
-        end
-        if @standby_timer
-          UI.stop_timer(@standby_timer)
-          @standby_timer = nil
-          log('pohotovosť skončila, preberám príjem povelov')
-        end
-        write_lock
         @status = 'running'
         @timer = UI.start_timer(POLL_SEC, true) { tick }
-        log("start pid=#{Process.pid} verzia=#{VERSION} sketchup=#{Sketchup.version}")
+        log("start verzia=#{VERSION} sketchup=#{Sketchup.version}")
         write_state(force: true)
-        puts "[N-portal E0] prijímač beží (pid #{Process.pid}). Priečinok: #{DATA_DIR}"
+        puts "[N-portal E0] prijímač beží (pid #{PID}). Priečinok: #{DATA_DIR}"
       end
 
+      # Zastaví prijímač a odstráni stav tejto relácie, aby ju služba prestala ponúkať ako cieľ.
       def stop
         if @timer
           UI.stop_timer(@timer)
           @timer = nil
         end
-        if @standby_timer
-          UI.stop_timer(@standby_timer)
-          @standby_timer = nil
-        end
         @status = 'stopped'
-        write_state(force: true)
-        File.delete(LOCK_FILE) if File.exist?(LOCK_FILE) && lock_pid == Process.pid
+        File.delete(STATE_FILE) if File.exist?(STATE_FILE)
+        FileUtils.rm_rf(CMD_DIR) if File.directory?(CMD_DIR)
         log('stop')
         puts '[N-portal E0] prijímač zastavený.'
       rescue => e
         puts "[N-portal E0] stop: #{e.class}: #{e.message}"
       end
+
 
       def status_report
         {
@@ -391,7 +379,6 @@ module NPortal
           "written_at=#{now.to_i}"
         ]
         atomic_write(STATE_FILE, lines.join("\n") + "\n")
-        write_lock if @status == 'running'
       rescue => e
         puts "[N-portal E0] write_state: #{e.class}: #{e.message}"
       end
@@ -400,24 +387,6 @@ module NPortal
         tmp = "#{path}.tmp"
         File.write(tmp, content, encoding: 'UTF-8')
         File.rename(tmp, path)
-      end
-
-      def write_lock
-        atomic_write(LOCK_FILE, { pid: Process.pid, at: Time.now.to_i }.to_json)
-      end
-
-      def lock_pid
-        return nil unless File.exist?(LOCK_FILE)
-        JSON.parse(File.read(LOCK_FILE))['pid'].to_i
-      rescue
-        nil
-      end
-
-      def foreign_lock_alive?
-        return false unless File.exist?(LOCK_FILE)
-        pid = lock_pid
-        return false if pid.nil? || pid == Process.pid
-        (Time.now - File.mtime(LOCK_FILE)) < LOCK_STALE_SEC
       end
 
       def remember(id)
@@ -435,7 +404,7 @@ module NPortal
           File.write(LOG_FILE, '', encoding: 'UTF-8')
         end
         File.open(LOG_FILE, 'a', encoding: 'UTF-8') do |f|
-          f.puts "#{Time.now.strftime('%Y-%m-%d %H:%M:%S')} #{msg}"
+          f.puts "#{Time.now.strftime('%Y-%m-%d %H:%M:%S')} [#{PID}] #{msg}"
         end
       rescue
         nil
@@ -455,6 +424,10 @@ module NPortal
     end
 
     install_menu
+    unless defined?(@quit_observer) && @quit_observer
+      @quit_observer = QuitObserver.new
+      Sketchup.add_observer(@quit_observer)
+    end
     start
   end
 end

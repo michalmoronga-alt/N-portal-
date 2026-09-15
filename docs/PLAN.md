@@ -12,6 +12,7 @@ Doplnené nápady na adaptívne rozhranie podľa aplikácie a výberu. Sú to bu
 | **E1 — Station** | Čas, dátum, usage (Claude weekly + 5h, Codex weekly) zo súboru existujúceho skinu, hudba cez Windows Media Session (názov, play/pause, ďalšia/predošlá, obrázok skladby v pozadí karty). Ručný prepínač Station/SKP. Rozloženie podľa odsúhlaseného mocku (`app/public/mock.html`, 15. 9. 2026). | Čitateľnosť a dotyk na skutočnom mobile; stabilné prepínanie; Station funguje bez SketchUpu; displej sa neuspáva. |
 | **E1b — dotiahnutie UI** | Interaktívne prechody a animácie: plynulé prepnutie Station/SKP, animované kruhy usage, stlačenie dlaždíc, prechod obrázka skladby. Požiadavka Michala z 15. 9. 2026; môže ísť aj po E1, funkčnosť má prednosť. | Animácie neznižujú odozvu tlačidiel a nezaťažujú starší mobil. |
 | **E2 — navigácia** | Zhora, spredu, zľava so zameraním výberu (bez výberu celý model); predošlý pohľad z vlastnej histórie kamery (posledných 20 zmien vyvolaných panelom, nie Undo modelu); celý model. Osi modelu, premietanie sa nemení. **Postavené 15. 9. 2026, overené na PC.** | Overenie na mobile a na reálnej zákazke; lokálne osi skrinky a rovnobežné premietanie zostávajú návrhy na neskôr. |
+| **E4 — AUTO režim a viac relácií** | Služba sleduje aktívne okno (proces, PID, titulok). PWA má AUTO / Station / SKP: v AUTO aktívny SketchUp s pripraveným prijímačom → SKP, inak Station; Chrome → Station s väčším prehrávačom; oneskorenie 400 ms, neprepína počas dotyku; ručná voľba má prednosť. Každá relácia SketchUpu má vlastný prijímač a stav; povely idú do relácie, ktorej okno bolo naposledy v popredí; pri viacerých bez jasného cieľa sú tlačidlá zablokované s vysvetlením. **Postavené 15. 9. 2026, overené na PC.** | Overenie na mobile: prepínanie SketchUp ↔ plocha ↔ Chrome, dva otvorené modely, rýchly Alt+Tab. |
 | **E3 — viditeľnosť** | Izolovať / obnoviť ako jedna prepínacia dlaždica (skryje viditeľné susedy v aktuálnom editačnom kontexte, pamätá si ich, obnoví len tie; jeden krok Undo); zobrazenie skrytých objektov ako prepínač (View > Hidden Objects, nezasahuje do skrytej geometrie ani tagov). **Tagy mimo V1** (rozhodnutie Michala 15. 9. 2026). **Postavené 15. 9. 2026, overené na PC.** | Overenie na mobile; ručný test „čo bolo skryté pred izoláciou, ostane skryté“. |
 
 E0 je samostatný technický experiment, nie hotová V1. Kandidát na prvý použiteľný základ je E1; presný obsah vydania sa určí podľa testov. Automatika, adaptívne rozloženie, história objektov a gestá sú mimo V1. Diagnostika ich vstupných signálov nie je ich implementácia.
@@ -29,7 +30,9 @@ E0 je samostatný technický experiment, nie hotová V1. Kandidát na prvý pou�
 
 ## Backlog — až po základnom teste
 
-### Automatické režimy — mimo V1
+### Automatické režimy — implementované v E4 (15. 9. 2026)
+
+Pôvodne mimo V1; Michal ich vyžiadal po E3. Popis nižšie zostáva ako špecifikácia správania.
 
 Tri nastavenia: a) AUTO, b) Station napevno, c) SKP napevno.
 

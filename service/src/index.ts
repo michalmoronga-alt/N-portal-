@@ -1,6 +1,6 @@
 // N-portal – lokálna služba na PC.
 // HTTP: servuje zostavenú PWA z ../app/dist a /api/health.
-// WebSocket /ws?t=<token>: posiela stav po témach (sketchup, usage, media) a prijíma povely z PWA.
+// WebSocket /ws?t=<token>: posiela stav po témach (sketchup, usage, media, foreground) a prijíma povely z PWA.
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -8,11 +8,12 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
 import { loadConfig, SERVICE_DIR } from './config.js';
-import { readState, sendCommand, ALLOWED_ACTIONS, type SketchUpState } from './sketchup.js';
+import { readInstances, buildState, sendCommand, ALLOWED_ACTIONS, type SketchUpState } from './sketchup.js';
 import { readUsage, USAGE_FILE, type UsageState } from './usage.js';
 import { MediaBridge, MEDIA_ACTIONS } from './media.js';
+import { ForegroundBridge } from './foreground.js';
 
-const VERSION = '0.2.0';
+const VERSION = '0.4.0';
 const SKETCHUP_POLL_MS = 250;
 const USAGE_POLL_MS = 5000;
 const HEARTBEAT_PUSH_MS = 2000;
@@ -39,9 +40,11 @@ function log(msg: string) {
 
 // ---------- stav po témach ----------
 
-let sketchup: SketchUpState = readState();
-let usage: UsageState = readUsage();
 const media = new MediaBridge(log);
+const foreground = new ForegroundBridge(log);
+let lastSketchupFgPid: number | null = null; // relácia SketchUpu, ktorej okno bolo naposledy v popredí
+let sketchup: SketchUpState = buildState(readInstances(), lastSketchupFgPid);
+let usage: UsageState = readUsage();
 
 const wss = new WebSocketServer({ noServer: true });
 
@@ -57,7 +60,13 @@ const server = http.createServer((req, res) => {
 
   if (url.pathname === '/api/health') {
     res.writeHead(200, { 'Content-Type': MIME['.json'], 'Cache-Control': 'no-store' });
-    res.end(JSON.stringify({ ok: true, version: VERSION, time: Date.now(), sketchup, usage: { ...usage }, media: { ...media.state, thumb: media.state.thumb ? '(obrázok)' : null } }));
+    res.end(
+      JSON.stringify({
+        ok: true, version: VERSION, time: Date.now(),
+        sketchup, usage, foreground: foreground.state,
+        media: { ...media.state, thumb: media.state.thumb ? '(obrázok)' : null },
+      }),
+    );
     return;
   }
 
@@ -102,6 +111,7 @@ wss.on('connection', (ws, req) => {
   ws.send(msg('sketchup', sketchup));
   ws.send(msg('usage', usage));
   ws.send(msg('media', media.state));
+  ws.send(msg('foreground', foreground.state));
 
   ws.on('message', (data) => {
     let m: ClientMsg;
@@ -124,13 +134,16 @@ wss.on('connection', (ws, req) => {
         ws.send(JSON.stringify({ type: 'ack', clientId: m.id, ok: false, error: `Nepovolená akcia: ${m.action}` }));
         return;
       }
-      if (!sketchup.available) {
-        ws.send(JSON.stringify({ type: 'ack', clientId: m.id, ok: false, error: 'SketchUp je nedostupný, povel sa neposiela.' }));
+      if (!sketchup.available || sketchup.pid === null) {
+        const why = sketchup.targetReason === 'ambiguous'
+          ? 'Beží viac SketchUpov – klikni do toho, ktorý chceš ovládať.'
+          : 'SketchUp je nedostupný, povel sa neposiela.';
+        ws.send(JSON.stringify({ type: 'ack', clientId: m.id, ok: false, error: why }));
         return;
       }
       try {
-        const { id } = sendCommand(m.action, m.id);
-        log(`povel ${m.action} → ${id}`);
+        const { id } = sendCommand(sketchup.pid, m.action, m.id);
+        log(`povel ${m.action} → pid ${sketchup.pid} (${sketchup.model ?? '?'}) ${id}`);
         ws.send(JSON.stringify({ type: 'ack', clientId: m.id, ok: true, id }));
       } catch (e) {
         ws.send(JSON.stringify({ type: 'ack', clientId: m.id, ok: false, error: (e as Error).message }));
@@ -145,18 +158,21 @@ wss.on('connection', (ws, req) => {
 
 let lastSketchup = JSON.stringify(sketchup);
 let lastSketchupPush = 0;
-setInterval(() => {
-  const st = readState();
+function refreshSketchup(force = false) {
+  const st = buildState(readInstances(), lastSketchupFgPid);
   const ser = JSON.stringify(st);
   const now = Date.now();
-  if (ser !== lastSketchup || now - lastSketchupPush >= HEARTBEAT_PUSH_MS) {
-    if (st.available !== sketchup.available) log(`SketchUp ${st.available ? 'dostupný' : 'nedostupný'} (${st.receiverStatus})`);
+  if (force || ser !== lastSketchup || now - lastSketchupPush >= HEARTBEAT_PUSH_MS) {
+    if (st.available !== sketchup.available || st.pid !== sketchup.pid) {
+      log(`SketchUp cieľ: ${st.available ? `pid ${st.pid} (${st.model ?? '?'}, ${st.targetReason})` : `nedostupný (${st.receiverStatus})`}; relácií: ${st.instances.length}`);
+    }
     sketchup = st;
     lastSketchup = ser;
     lastSketchupPush = now;
     broadcast(msg('sketchup', st));
   }
-}, SKETCHUP_POLL_MS);
+}
+setInterval(() => refreshSketchup(), SKETCHUP_POLL_MS);
 
 let lastUsage = JSON.stringify(usage);
 setInterval(() => {
@@ -171,6 +187,15 @@ setInterval(() => {
 
 media.onChange((s) => broadcast(msg('media', s)));
 media.start();
+
+foreground.onChange((s) => {
+  if (s.kind === 'sketchup' && s.pid && s.pid !== lastSketchupFgPid) {
+    lastSketchupFgPid = s.pid;
+    refreshSketchup(true);
+  }
+  broadcast(msg('foreground', s));
+});
+foreground.start();
 
 // ---------- štart ----------
 
@@ -196,5 +221,6 @@ server.listen(cfg.port, '0.0.0.0', () => {
 
 process.on('SIGINT', () => {
   media.stop();
+  foreground.stop();
   process.exit(0);
 });

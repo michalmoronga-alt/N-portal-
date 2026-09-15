@@ -2,7 +2,7 @@
 
 Dotykový pracovný panel NOXUN pre starší mobil používaný cez spacedesk ako tretí monitor PC.
 
-**Stav k 15. 9. 2026:** smer zmenený na **PWA na mobile + lokálna služba na PC** (dôvod: test D0 ukázal, že dotyk cez spacedesk presúva kurzor a fokus). Etapa E0 (jedno tlačidlo „Zamerať výber“) je postavená a otestovaná na PC; čaká na test na reálnom mobile podľa [Postupu](docs/POSTUP.md). Ďalšie etapy nezačínať bez potvrdenia rozsahu.
+**Stav k 15. 9. 2026:** smer zmenený na **PWA na mobile + lokálna služba na PC** (dôvod: test D0 ukázal, že dotyk cez spacedesk presúva kurzor a fokus). Hotové a na mobile overené: E0 (Zamerať výber), E1 (Station: čas, usage, hudba), E2 (pohľady), E3 (izolovať/obnoviť, skryté objekty; tagy mimo V1). E4 (AUTO režim podľa aktívneho okna, viac relácií SketchUpu) je postavené a overené na PC. Stav a záznamy testov sú v [Postupe](docs/POSTUP.md). Ďalšie etapy nezačínať bez potvrdenia rozsahu.
 
 ## Časti
 

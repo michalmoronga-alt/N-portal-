@@ -13,3 +13,8 @@ if (-not (Test-Path $csc)) { throw "csc.exe sa nenašiel: $csc" }
   (Join-Path $here 'media-worker.cs')
 if ($LASTEXITCODE -ne 0) { throw 'Kompilácia media-worker.exe zlyhala.' }
 Write-Host "OK: $out\media-worker.exe"
+
+# sonda aktívneho okna (len Win32, bez WinRT)
+& $csc /nologo /target:exe /platform:anycpu /optimize+ /out:"$out\fg-worker.exe" (Join-Path $here 'fg-worker.cs')
+if ($LASTEXITCODE -ne 0) { throw 'Kompilácia fg-worker.exe zlyhala.' }
+Write-Host "OK: $out\fg-worker.exe"

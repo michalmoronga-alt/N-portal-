@@ -17,6 +17,17 @@ export interface SketchUpState {
   isolationCount: number;
   hiddenObjectsShown: boolean;
   last: SketchUpLast | null;
+  pid: number | null;
+  targetReason: 'foreground' | 'single' | 'none' | 'ambiguous';
+  instances: { pid: number; model: string | null; available: boolean; selectionCount: number | null }[];
+}
+export interface ForegroundState {
+  available: boolean;
+  app: string | null;
+  pid: number | null;
+  title: string | null;
+  kind: 'sketchup' | 'chrome' | 'other';
+  ts: number;
 }
 export interface UsageProvider {
   status: string | null;
@@ -48,6 +59,7 @@ type ServerMsg =
   | { type: 'sketchup'; ts: number; data: SketchUpState }
   | { type: 'usage'; ts: number; data: UsageState }
   | { type: 'media'; ts: number; data: MediaState }
+  | { type: 'foreground'; ts: number; data: ForegroundState }
   | { type: 'ack'; clientId?: string; ok: boolean; id?: string; error?: string }
   | { type: 'pong'; ts: number };
 
@@ -79,6 +91,7 @@ export function useService() {
   const [sketchup, setSketchup] = useState<SketchUpState | null>(null);
   const [usage, setUsage] = useState<UsageState | null>(null);
   const [media, setMedia] = useState<MediaState | null>(null);
+  const [foreground, setForeground] = useState<ForegroundState | null>(null);
   const [lastAck, setLastAck] = useState<Ack | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const tokenRef = useRef<string | null>(null);
@@ -114,6 +127,7 @@ export function useService() {
         if (m.type === 'sketchup') setSketchup(m.data);
         else if (m.type === 'usage') setUsage(m.data);
         else if (m.type === 'media') setMedia(m.data);
+        else if (m.type === 'foreground') setForeground(m.data);
         else if (m.type === 'ack') setLastAck(m);
       };
       ws.onclose = () => {
@@ -158,5 +172,5 @@ export function useService() {
     ws.send(JSON.stringify({ type: 'media', action }));
   }, []);
 
-  return { connection, sketchup, usage, media, lastAck, sendCommand, sendMedia, hasToken: !!tokenRef.current };
+  return { connection, sketchup, usage, media, foreground, lastAck, sendCommand, sendMedia, hasToken: !!tokenRef.current };
 }

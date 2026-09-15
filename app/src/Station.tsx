@@ -6,9 +6,10 @@ interface Props {
   usage: UsageState | null;
   media: MediaState | null;
   sendMedia: (a: 'play' | 'pause' | 'toggle' | 'next' | 'prev') => void;
+  bigPlayer?: boolean; // pri aktívnom Chrome: väčšia hudobná karta a ovládanie
 }
 
-export default function Station({ usage, media, sendMedia }: Props) {
+export default function Station({ usage, media, sendMedia, bigPlayer }: Props) {
   const now = useClock();
   const hh = String(now.getHours()).padStart(2, '0');
   const mm = String(now.getMinutes()).padStart(2, '0');
@@ -16,7 +17,7 @@ export default function Station({ usage, media, sendMedia }: Props) {
   const playing = media?.status === 'Playing';
 
   return (
-    <div className="station">
+    <div className={`station ${bigPlayer ? 'big-player' : ''}`}>
       <section className="card clock">
         <div className="time">
           <span>{hh}</span>
