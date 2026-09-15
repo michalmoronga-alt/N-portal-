@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import Ring from './Ring';
 import type { Ack, MediaState, SketchUpState, UsageState } from './service';
 import { useClock, formatDateShort } from './time';
+import { ledTap, ledError } from './ledPulse';
 
 type Flash = { kind: 'ok' | 'error' | 'warn'; text: string; until: number } | null;
 const REPLY_TIMEOUT_MS = 3000;
@@ -83,6 +84,7 @@ export default function Skp({ online, sketchup, usage, media, lastAck, sendComma
     if (pendingId && last.id !== pendingId) return;
     setPendingId(null);
     const kind = last.status === 'ok' ? 'ok' : last.status === 'error' ? 'error' : 'warn';
+    if (kind !== 'ok') ledError();
     setFlash({ kind, text: last.message, until: Date.now() + (kind === 'ok' ? 2000 : 3500) });
   }, [sketchup?.last, pendingId]);
 
@@ -99,10 +101,12 @@ export default function Skp({ online, sketchup, usage, media, lastAck, sendComma
 
   const press = (action: string) => {
     if (!ready) {
+      ledError();
       setFlash({ kind: 'warn', text: online ? 'SketchUp je nedostupný.' : 'Nie je spojenie so službou na PC.', until: Date.now() + 2500 });
       return;
     }
     if (pendingId) return;
+    ledTap();
     const id = sendCommand(action);
     if (id) {
       pendingSince.current = Date.now();
@@ -128,9 +132,9 @@ export default function Skp({ online, sketchup, usage, media, lastAck, sendComma
           <Ring size="mini" weekly={usage?.claude.weeklyUsed ?? null} session={usage?.claude.sessionUsed ?? null} label="Claude" stale={stale} />
         </div>
         <div className="mus">
-          <button onClick={() => sendMedia('prev')} disabled={!media?.available} aria-label="Predošlá">⏮</button>
-          <button onClick={() => sendMedia('toggle')} disabled={!media?.available} aria-label="Prehrať / pauza">{playing ? '⏸' : '▶'}</button>
-          <button onClick={() => sendMedia('next')} disabled={!media?.available} aria-label="Ďalšia">⏭</button>
+          <button onClick={() => { ledTap(); sendMedia('prev'); }} disabled={!media?.available} aria-label="Predošlá">⏮</button>
+          <button onClick={() => { ledTap(); sendMedia('toggle'); }} disabled={!media?.available} aria-label="Prehrať / pauza">{playing ? '⏸' : '▶'}</button>
+          <button onClick={() => { ledTap(); sendMedia('next'); }} disabled={!media?.available} aria-label="Ďalšia">⏭</button>
         </div>
       </aside>
 

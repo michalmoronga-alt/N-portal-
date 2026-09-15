@@ -11,7 +11,7 @@ Dotykový pracovný panel NOXUN pre starší mobil používaný cez spacedesk ak
 | `app/` | PWA pre mobil (Vite + React + TypeScript). `npm run build` → `app/dist`, servuje ju služba. |
 | `service/` | Lokálna služba na PC (Node + TypeScript): servuje PWA, WebSocket s tokenom, prepojenie na SketchUp. |
 | `sketchup/` | Ruby prijímač povelov pre SketchUp 2026 (zoznam povolených akcií, súborový protokol). |
-| `tools/` | `start-service.ps1` (zostaví a spustí službu), `install-sketchup.ps1` (skopíruje prijímač do SketchUpu). |
+| `tools/` | `start-service.ps1` (zostaví a spustí službu ručne), `install-autostart.ps1` / `uninstall-autostart.ps1` (automatický štart služby po prihlásení, bez okna, s reštartom pri páde), `install-sketchup.ps1` (skopíruje prijímač do SketchUpu). |
 | `docs/` | Dokumentácia. |
 
 Dáta za behu: `C:\Users\<meno>\.n-portal` (povely, stav, logy, konfigurácia služby s tokenom).

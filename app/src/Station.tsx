@@ -1,6 +1,7 @@
 import Ring from './Ring';
 import type { MediaState, UsageState } from './service';
 import { useClock, formatDateLong, formatReset } from './time';
+import { ledTap } from './ledPulse';
 
 interface Props {
   usage: UsageState | null;
@@ -61,11 +62,11 @@ export default function Station({ usage, media, sendMedia, bigPlayer }: Props) {
           )}
         </div>
         <div className="ctrl">
-          <button onClick={() => sendMedia('prev')} aria-label="Predošlá" disabled={!media?.available}>⏮</button>
-          <button className="main" onClick={() => sendMedia('toggle')} aria-label="Prehrať / pauza" disabled={!media?.available}>
+          <button onClick={() => { ledTap(); sendMedia('prev'); }} aria-label="Predošlá" disabled={!media?.available}>⏮</button>
+          <button className="main" onClick={() => { ledTap(); sendMedia('toggle'); }} aria-label="Prehrať / pauza" disabled={!media?.available}>
             {playing ? '⏸' : '▶'}
           </button>
-          <button onClick={() => sendMedia('next')} aria-label="Ďalšia" disabled={!media?.available}>⏭</button>
+          <button onClick={() => { ledTap(); sendMedia('next'); }} aria-label="Ďalšia" disabled={!media?.available}>⏭</button>
         </div>
       </section>
     </div>

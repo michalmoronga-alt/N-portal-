@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<title>N-portal – test LED cez zvuk</title>
+<style>
+  :root{color-scheme:dark;--bg:#0b0f17;--card:#141b28;--line:#243044;--text:#e9eef7;--muted:#8b96ab;--blue:#2f7ae5;--amber:#e0a12a;--green:#2fa35a}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;user-select:none;overflow:hidden}
+  .screen{height:100%;display:grid;grid-template-rows:auto 1fr auto;gap:1.5vh;padding:max(8px,env(safe-area-inset-top)) 12px 8px}
+  h1{margin:0;font-size:2.8vh;color:var(--muted);font-weight:600;display:flex;gap:2vw;align-items:center}
+  h1 .big{color:var(--text)}
+  .main{display:grid;grid-template-columns:1.1fr 1fr;gap:1.5vw;min-height:0}
+  .col{display:flex;flex-direction:column;gap:1.2vh;min-height:0}
+  .row{display:grid;grid-template-columns:repeat(4,1fr);gap:1.2vw}
+  button{border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--text);font:inherit;font-size:2.8vh;font-weight:600;padding:2vh 0;transition:background .15s,transform .08s}
+  button:active{transform:scale(.97);background:var(--blue)}
+  button.long{font-size:3vh;padding:3vh 0;background:linear-gradient(160deg,#1f6f6a,#134a47)}
+  button.stop{background:#5a2a2a}
+  .display{flex:1;border:1px solid var(--line);border-radius:18px;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1vh;min-height:0}
+  .freq{font-size:12vh;font-weight:700;line-height:1;letter-spacing:-.03em}
+  .freq small{font-size:4vh;color:var(--muted);font-weight:600}
+  .sub{font-size:2.6vh;color:var(--muted);text-align:center;padding:0 2vw}
+  .bar{height:1.6vh;width:80%;border-radius:999px;background:#1f2a3d;overflow:hidden}
+  .bar i{display:block;height:100%;width:0;background:var(--blue);transition:width .2s linear}
+  .gain{display:flex;align-items:center;gap:2vw;font-size:2.4vh;color:var(--muted)}
+  .gain input{flex:1;height:3vh}
+  .note{font-size:2.1vh;color:var(--muted);text-align:center}
+</style>
+</head>
+<body>
+<div class="screen">
+  <h1><span class="big">Test LED cez zvuk</span><span>Zapni Nastavenia › IIIF150 Lights › Rhythm Lights. Skús so stíšeným telefónom aj s nízkou hlasitosťou.</span></h1>
+
+  <div class="main">
+    <div class="col">
+      <div class="row">
+        <button data-f="25">25 Hz</button>
+        <button data-f="40">40 Hz</button>
+        <button data-f="60">60 Hz</button>
+        <button data-f="1000">1 kHz</button>
+      </div>
+      <div class="row">
+        <button data-f="100">100 Hz</button>
+        <button data-f="200">200 Hz</button>
+        <button data-f="500">500 Hz</button>
+        <button data-f="2000">2 kHz</button>
+      </div>
+      <button class="long" id="sweep">Plynulý prechod 20 Hz → 4 kHz (40 s)</button>
+      <button class="long" id="steps">Krokový test: 25 · 40 · 60 · 100 · 200 · 500 · 1 000 · 2 000 Hz (3 s každý)</button>
+      <button class="stop" id="stop">Stop</button>
+      <div class="gain"><span>Sila tónu</span><input id="gain" type="range" min="0" max="100" value="60" /><span id="gainv">60 %</span></div>
+      <div class="note" style="text-align:left">Cez prehrávač médií (ako YouTube):</div>
+      <div class="row">
+        <button data-m="tone:30">30 Hz · 20 s</button>
+        <button data-m="tone:50">50 Hz · 20 s</button>
+        <button data-m="beat:45">Beat 45 Hz · 20 s</button>
+        <button data-m="beat:120">Beat 120 Hz · 20 s</button>
+      </div>
+      <div class="note" style="text-align:left">Krátke pulzy cez prehrávač (beat 45 Hz) – aký krátky ešte svetlá zachytia:</div>
+      <div class="row">
+        <button data-m="beat:45:0.2">200 ms</button>
+        <button data-m="beat:45:0.4">400 ms</button>
+        <button data-m="beat:45:0.8">800 ms</button>
+        <button data-m="beat:45:1.5">1,5 s</button>
+      </div>
+    </div>
+
+    <div class="display">
+      <div class="freq"><span id="f">–</span> <small>Hz</small></div>
+      <div class="sub" id="status">Klepni na tlačidlo. Krátke tóny trvajú 300 ms.</div>
+      <div class="bar"><i id="prog"></i></div>
+    </div>
+  </div>
+
+  <div class="note">Hlboké tóny (25–60 Hz) reproduktor mobilu nevie prehrať, no v zvukovom signáli sú. Ak pri nich LED bliknú a nič nepočuť, máme spôsob spätnej väzby bez zvuku.</div>
+</div>
+
+<script>
+  let ctx = null, osc = null, gainNode = null, timer = null, raf = null;
+  const $ = (s) => document.querySelector(s);
+  const fEl = $('#f'), statusEl = $('#status'), progEl = $('#prog'), gainEl = $('#gain'), gainV = $('#gainv');
+  gainEl.oninput = () => { gainV.textContent = gainEl.value + ' %'; if (gainNode) gainNode.gain.value = gainEl.value / 100; };
+  const vol = () => gainEl.value / 100;
+
+  function ensure() {
+    if (!ctx) { ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+    if (ctx.state === 'suspended') ctx.resume();
+  }
+  function stopAll(msg) {
+    clearTimeout(timer); cancelAnimationFrame(raf); timer = null;
+    if (typeof audioEl !== 'undefined' && !audioEl.paused) audioEl.pause();
+    if (osc) { try { osc.stop(); } catch {} osc.disconnect(); osc = null; }
+    if (gainNode) { gainNode.disconnect(); gainNode = null; }
+    progEl.style.width = '0';
+    if (msg) statusEl.textContent = msg;
+  }
+  function start(freq) {
+    stopAll();
+    ensure();
+    osc = ctx.createOscillator(); gainNode = ctx.createGain();
+    osc.type = 'sine'; osc.frequency.value = freq; gainNode.gain.value = vol();
+    osc.connect(gainNode).connect(ctx.destination); osc.start();
+    fEl.textContent = Math.round(freq);
+  }
+
+  // krátke tóny 300 ms
+  document.querySelectorAll('button[data-f]').forEach((b) => {
+    b.onclick = () => {
+      const f = Number(b.dataset.f);
+      start(f);
+      statusEl.textContent = `Tón ${f} Hz, 300 ms`;
+      timer = setTimeout(() => stopAll(`Hotovo: ${f} Hz`), 300);
+    };
+  });
+
+  // plynulý prechod 20 → 4000 Hz, 40 s, exponenciálne
+  $('#sweep').onclick = () => {
+    const DUR = 40, f0 = 20, f1 = 4000;
+    start(f0);
+    const t0 = ctx.currentTime;
+    osc.frequency.setValueAtTime(f0, t0);
+    osc.frequency.exponentialRampToValueAtTime(f1, t0 + DUR);
+    statusEl.textContent = 'Plynulý prechod – sleduj, pri ktorej frekvencii LED reagujú';
+    const tick = () => {
+      if (!osc) return;
+      const el = ctx.currentTime - t0;
+      const f = f0 * Math.pow(f1 / f0, Math.min(1, el / DUR));
+      fEl.textContent = Math.round(f);
+      progEl.style.width = Math.min(100, (el / DUR) * 100) + '%';
+      if (el >= DUR) { stopAll('Prechod skončil (4 000 Hz).'); return; }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+  };
+
+  // krokový test: každá frekvencia 3 s tónu + 1 s ticha
+  $('#steps').onclick = () => {
+    const steps = [25, 40, 60, 100, 200, 500, 1000, 2000];
+    let i = 0;
+    const next = () => {
+      if (i >= steps.length) { stopAll('Krokový test skončil.'); return; }
+      const f = steps[i++];
+      start(f);
+      statusEl.textContent = `Krok ${i}/${steps.length}: ${f} Hz na 3 s`;
+      progEl.style.width = ((i) / steps.length) * 100 + '%';
+      timer = setTimeout(() => {
+        if (osc) { osc.stop(); osc.disconnect(); osc = null; gainNode.disconnect(); gainNode = null; }
+        fEl.textContent = '–'; statusEl.textContent = 'ticho…';
+        timer = setTimeout(next, 1000);
+      }, 3000);
+    };
+    stopAll(); next();
+  };
+
+  // ---- prehrávač médií: WAV vygenerovaný v prehliadači, prehraný cez <audio> (mediálna relácia ako pri YouTube) ----
+  const audioEl = new Audio();
+  audioEl.preload = 'auto';
+  function makeWav(kind, freq, seconds) {
+    const sr = 44100, n = sr * seconds, data = new Int16Array(n);
+    const amp = 0.9 * vol();
+    for (let i = 0; i < n; i++) {
+      const t = i / sr;
+      let env = 1;
+      if (kind === 'beat') { const beat = t % 0.5; env = Math.exp(-beat * 9); } // úder 2× za sekundu
+      data[i] = Math.round(Math.sin(2 * Math.PI * freq * t) * env * amp * 32767);
+    }
+    const buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+    const str = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+    str(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); str(8, 'WAVE'); str(12, 'fmt '); v.setUint32(16, 16, true);
+    v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true);
+    v.setUint16(32, 2, true); v.setUint16(34, 16, true); str(36, 'data'); v.setUint32(40, n * 2, true);
+    new Int16Array(buf, 44).set(data);
+    return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+  }
+  document.querySelectorAll('button[data-m]').forEach((b) => {
+    b.onclick = async () => {
+      stopAll();
+      const [kind, f, sec] = b.dataset.m.split(':');
+      const freq = Number(f);
+      const dur = Number(sec) || 20;
+      audioEl.src = makeWav(kind, freq, dur);
+      audioEl.volume = 1;
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({ title: `N-portal test ${freq} Hz`, artist: 'N-portal', album: 'LED test' });
+        navigator.mediaSession.playbackState = 'playing';
+      }
+      fEl.textContent = freq;
+      statusEl.textContent = `${kind === 'beat' ? 'Beat' : 'Tón'} ${freq} Hz cez prehrávač médií, ${dur >= 1 ? dur + ' s' : Math.round(dur * 1000) + ' ms'}`;
+      const t0 = Date.now();
+      raf = requestAnimationFrame(function tick() { const el = (Date.now() - t0) / 1000; progEl.style.width = Math.min(100, el / dur * 100) + '%'; if (!audioEl.paused) raf = requestAnimationFrame(tick); });
+      try { await audioEl.play(); } catch (e) { statusEl.textContent = 'Prehrávanie zlyhalo: ' + e.message; }
+      audioEl.onended = () => stopAll('Prehrávač skončil.');
+    };
+  });
+
+  $('#stop').onclick = () => { audioEl.pause(); audioEl.removeAttribute('src'); stopAll('Zastavené.'); };
+  document.addEventListener('dblclick', () => { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(()=>{}); });
+</script>
+</body>
+</html>

@@ -209,6 +209,18 @@ function lanAddresses(): string[] {
   return out;
 }
 
+// Ak už služba beží (napr. spustená ručne a zároveň Plánovačom), druhá kópia sa ticho ukončí.
+server.on('error', (e: NodeJS.ErrnoException) => {
+  if (e.code === 'EADDRINUSE') {
+    log(`port ${cfg.port} už používa iná kópia služby – končím`);
+    media.stop();
+    foreground.stop();
+    process.exit(0);
+  }
+  log(`server chyba: ${e.message}`);
+  process.exit(1);
+});
+
 server.listen(cfg.port, '0.0.0.0', () => {
   console.log('');
   console.log(`N-portal služba v${VERSION}  (konfigurácia: ${SERVICE_DIR})`);

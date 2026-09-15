@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useService } from './service';
 import Station from './Station';
 import Skp from './Skp';
+import { ledEnabled, setLedEnabled, ledTap } from './ledPulse';
 
 type Mode = 'station' | 'skp';
 type Pref = 'auto' | Mode;
@@ -19,6 +20,13 @@ export default function App() {
     }
   });
   const [autoMode, setAutoMode] = useState<Mode>('station');
+  const [led, setLed] = useState(ledEnabled());
+  const toggleLed = () => {
+    const v = !led;
+    setLed(v);
+    setLedEnabled(v);
+    if (v) ledTap();
+  };
   const touching = useRef(false); // počas dotyku neprepínať rozloženie
   const pendingAuto = useRef<Mode | null>(null);
 
@@ -95,6 +103,7 @@ export default function App() {
         <span className="state">{headline}</span>
         {fgLabel && <span className="fg" title="Aktívne okno na PC">{fgLabel}</span>}
         <span className="brand">NOXUN</span>
+        <button className={`tiny led ${led ? 'led-on' : ''}`} onClick={toggleLed} aria-label="Spätná väzba LED" title="Zadné LED pri klepnutí">💡</button>
         <button className="tiny" onClick={toggleFullscreen} aria-label="Celá obrazovka">⛶</button>
       </header>
 

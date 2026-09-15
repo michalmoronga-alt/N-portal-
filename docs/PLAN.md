@@ -88,6 +88,7 @@ Nehromadiť staré povely; po pustení prsta pohyb zastaviť. Viacprstové gest�
 | Engine kontext | Názov, rozmery a materiál výberu zo skutočných dát Engine; otočenie textúry o 90°, zobrazenie/ovládanie ABS. Nie celý Inspector. |
 | Dogfooding | Uložiť snímku viewportu s názvom modelu a časom. Snímka viewportu nezachytí UI Inspectora. |
 | Prispôsobenie | Veľkosť, farby a priehľadnosť, detail usage/resetov po dotyku, neskôr integrácia nastavení JaxCore. |
+| Spätná väzba LED (hotové 15. 9. 2026) | Zadné LED telefónu cez nepočuteľný 45 Hz „beat“ prehraný ako médium (jediná cesta, ktorá Rhythm Lights spustí). 400 ms pri klepnutí, 800 ms dvojpulz pri chybe, prepínač v páse. Neskôr: dlhší pulz pri dokončení dlhých akcií, rozlíšenie režimov. |
 | Prevádzka | Lišta Windows iba na vybraných monitoroch; obnova polohy pri odpojení mobilu. |
 
 Neplánovať zatiaľ editor ľubovoľných makier, druhý zber usage, presné formuláre rozmerov ani gestá upravujúce geometriu. Funkcie pridávať podľa reálnej potreby.
