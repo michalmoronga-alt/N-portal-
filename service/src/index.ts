@@ -30,6 +30,10 @@ const MIME: Record<string, string> = {
   '.webmanifest': 'application/manifest+json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
   '.ico': 'image/x-icon',
   '.woff2': 'font/woff2',
 };
@@ -81,9 +85,11 @@ const server = http.createServer((req, res) => {
   }
   const ext = path.extname(file);
   const noCache = ext === '.html' || file.endsWith('sw.js') || ext === '.webmanifest';
+  // dlhé ukladanie len pre súbory s hashom v názve (assets/); ostatné (obrázky, mocky) krátko
+  const hashed = rel.startsWith('/assets/');
   res.writeHead(200, {
     'Content-Type': MIME[ext] ?? 'application/octet-stream',
-    'Cache-Control': noCache ? 'no-store' : 'public, max-age=31536000, immutable',
+    'Cache-Control': noCache ? 'no-store' : hashed ? 'public, max-age=31536000, immutable' : 'public, max-age=300',
   });
   fs.createReadStream(file).pipe(res);
 });

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import Ring from './Ring';
 import type { Ack, MediaState, SketchUpState, UsageState } from './service';
-import { useClock, formatDateShort } from './time';
+import { useClock, formatDateDayMonth } from './time';
 import { ledTap, ledError } from './ledPulse';
 import SwipeTile, { type SwipeDir } from './SwipeTile';
+import { IconPrev, IconNext, IconPlay, IconPause } from './MediaIcons';
 
 type Flash = { kind: 'ok' | 'error' | 'warn'; text: string; until: number } | null;
 const REPLY_TIMEOUT_MS = 3000;
@@ -18,35 +19,23 @@ interface Props {
   sendMedia: (a: 'play' | 'pause' | 'toggle' | 'next' | 'prev') => void;
 }
 
-// Dlaždice: stále pozície. Názov a popis dlaždíc E3 sa mení podľa skutočného stavu v SketchUpe.
-interface Tile { action: string; name: string; sub: string; icon: React.ReactNode; enabled: boolean; swipe?: boolean }
+interface Tile { action: string; name: string; sub: string; icon: React.ReactNode; enabled: boolean; swipe?: boolean; primary?: boolean }
 const SWIPE_ACTION: Record<SwipeDir, string> = { up: 'view_top', down: 'view_front', left: 'view_left', right: 'view_right' };
 
+// Dlaždice: stále pozície. Názov a popis sa mení podľa skutočného stavu v SketchUpe.
 function buildTiles(s: SketchUpState | null): Tile[] {
   const iso = !!s?.isolationActive;
   const hidden = !!s?.hiddenObjectsShown;
   const xray = !!s?.xrayOn;
   return [
-    { action: 'focus_selection', name: 'Zamerať výber', sub: '', enabled: true, icon: <IconFocus /> },
+    { action: 'focus_selection', name: 'Zamerať výber', sub: '', enabled: true, primary: true, icon: <IconFocus /> },
     { action: 'view', name: 'Pohľad', sub: 'potiahni', enabled: true, swipe: true, icon: <IconView /> },
     { action: 'view_iso', name: 'ISO', sub: '', enabled: true, icon: <IconIso /> },
     { action: 'xray_toggle', name: 'X‑Ray', sub: xray ? 'zapnutý' : 'vypnutý', enabled: true, icon: <IconXray /> },
     { action: 'view_previous', name: 'Predošlý pohľad', sub: '', enabled: true, icon: <IconUndo /> },
     { action: 'view_all', name: 'Celý model', sub: '', enabled: true, icon: <IconAll /> },
-    {
-      action: 'isolate_toggle',
-      name: iso ? 'Obnoviť' : 'Izolovať',
-      sub: iso ? `skrytých ${s!.isolationCount}` : 'výber',
-      enabled: true,
-      icon: iso ? <IconEyeOff /> : <IconEye />,
-    },
-    {
-      action: 'hidden_objects_toggle',
-      name: 'Skryté objekty',
-      sub: hidden ? 'zobrazené' : 'skryté',
-      enabled: true,
-      icon: <IconGhost />,
-    },
+    { action: 'isolate_toggle', name: iso ? 'Obnoviť' : 'Izolovať', sub: iso ? `skrytých ${s!.isolationCount}` : 'výber', enabled: true, icon: iso ? <IconEyeOff /> : <IconEye /> },
+    { action: 'hidden_objects_toggle', name: 'Skryté objekty', sub: hidden ? 'zobrazené' : 'skryté', enabled: true, icon: <IconGhost /> },
   ];
 }
 
@@ -54,7 +43,7 @@ export default function Skp({ online, sketchup, usage, media, lastAck, sendComma
   const now = useClock();
   const [flash, setFlash] = useState<Flash>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const [activeAction, setActiveAction] = useState<string | null>(null); // dlaždica, ktorej patrí stav odoslané/výsledok
+  const [activeAction, setActiveAction] = useState<string | null>(null);
   const pendingSince = useRef(0);
   const seenLastId = useRef<string | null>(null);
   const [tick, setTick] = useState(Date.now());
@@ -72,7 +61,8 @@ export default function Skp({ online, sketchup, usage, media, lastAck, sendComma
       pendingSince.current = Date.now();
     } else {
       setPendingId(null);
-      setFlash({ kind: 'warn', text: lastAck.error ?? 'Povel odmietnutý.', until: Date.now() + 3000 });
+      ledError();
+      setFlash({ kind: 'warn', text: lastAck.error ?? 'Povel odmietnutý.', until: Date.now() + 3500 });
     }
   }, [lastAck]);
 
@@ -89,7 +79,7 @@ export default function Skp({ online, sketchup, usage, media, lastAck, sendComma
     setPendingId(null);
     const kind = last.status === 'ok' ? 'ok' : last.status === 'error' ? 'error' : 'warn';
     if (kind !== 'ok') ledError();
-    setFlash({ kind, text: last.message, until: Date.now() + (kind === 'ok' ? 2000 : 3500) });
+    setFlash({ kind, text: last.message, until: Date.now() + (kind === 'ok' ? 1800 : 3500) });
   }, [sketchup?.last, pendingId]);
 
   // bez odpovede
@@ -122,36 +112,39 @@ export default function Skp({ online, sketchup, usage, media, lastAck, sendComma
 
   const stale = !usage || !usage.available || usage.stale;
   const playing = media?.status === 'Playing';
-  const status = activeFlash?.text ?? (pendingId ? 'Odoslané…' : ready ? `Model: ${sketchup!.model ?? '?'} · výber: ${sketchup!.selectionCount ?? '?'}` : 'SketchUp nedostupný');
 
   return (
     <div className="skp">
-      <aside className="card strip">
+      {/* zúžený Station: bez rámčeka, priamo na pozadí */}
+      <aside className="strip">
         <div className="strip-time">
-          <div className="t">{String(now.getHours()).padStart(2, '0')}<br />{String(now.getMinutes()).padStart(2, '0')}</div>
-          <div className="d">{formatDateShort(now)}</div>
+          <div className="t">{String(now.getHours()).padStart(2, '0')}:{String(now.getMinutes()).padStart(2, '0')}</div>
+          <div className="dd">{formatDateDayMonth(now)}</div>
+        </div>
+        <div className="player">
+          <div className="np">{media?.available ? <><span>♪ </span><b>{media.title || 'Bez názvu'}</b>{media.artist ? ` · ${media.artist}` : ''}</> : <span className="muted">nič nehrá</span>}</div>
+          <div className="mus">
+            <button onClick={() => { ledTap(); sendMedia('prev'); }} disabled={!media?.available} aria-label="Predošlá"><IconPrev /></button>
+            <button className="main" onClick={() => { ledTap(); sendMedia('toggle'); }} disabled={!media?.available} aria-label="Prehrať / pauza">{playing ? <IconPause /> : <IconPlay />}</button>
+            <button onClick={() => { ledTap(); sendMedia('next'); }} disabled={!media?.available} aria-label="Ďalšia"><IconNext /></button>
+          </div>
         </div>
         <div className="rings">
-          <Ring size="mini" weekly={usage?.codex.weeklyUsed ?? null} label="Codex" stale={stale} />
-          <Ring size="mini" weekly={usage?.claude.weeklyUsed ?? null} session={usage?.claude.sessionUsed ?? null} label="Claude" stale={stale} />
-        </div>
-        <div className="mus">
-          <button onClick={() => { ledTap(); sendMedia('prev'); }} disabled={!media?.available} aria-label="Predošlá">⏮</button>
-          <button onClick={() => { ledTap(); sendMedia('toggle'); }} disabled={!media?.available} aria-label="Prehrať / pauza">{playing ? '⏸' : '▶'}</button>
-          <button onClick={() => { ledTap(); sendMedia('next'); }} disabled={!media?.available} aria-label="Ďalšia">⏭</button>
+          <div className="rw"><Ring size="mini" weekly={usage?.codex.weeklyUsed ?? null} label="" stale={stale} /><div className="name">Codex</div></div>
+          <div className="rw"><Ring size="mini" weekly={usage?.claude.weeklyUsed ?? null} session={usage?.claude.sessionUsed ?? null} label="" stale={stale} /><div className="name">Claude</div></div>
         </div>
       </aside>
 
       <div className="skp-main">
         <div className="grid">
           {buildTiles(sketchup).map((t) => {
-            let cls = 'tile';
+            let cls = 'tile glass';
             const mine = t.swipe ? Object.values(SWIPE_ACTION).includes(activeAction ?? '') : t.action === activeAction;
             if (!t.enabled) cls += ' off';
             else if (mine && activeFlash) cls += ` ${activeFlash.kind}`;
             else if (mine && pendingId) cls += ' sent';
-            else if (ready) cls += ' on';
-            else cls += ' idle';
+            else if (!ready) cls += ' idle';
+            if (t.primary) cls += ' primary';
             if (t.action === 'isolate_toggle' && sketchup?.isolationActive && !activeFlash) cls += ' active';
             if (t.action === 'xray_toggle' && sketchup?.xrayOn && !activeFlash) cls += ' active';
             const body = (
@@ -175,7 +168,10 @@ export default function Skp({ online, sketchup, usage, media, lastAck, sendComma
             );
           })}
         </div>
-        <div className={`skp-status ${activeFlash?.kind ?? ''}`}>{status}</div>
+        {/* toast: výsledok povelu, sám zmizne */}
+        <div className={`toast glass ${activeFlash ? `show ${activeFlash.kind}` : pendingId ? 'show sent' : ''}`} aria-live="polite">
+          {activeFlash ? (activeFlash.kind === 'ok' ? '✓ ' : '⚠ ') + activeFlash.text : pendingId ? 'Odoslané…' : ''}
+        </div>
       </div>
     </div>
   );

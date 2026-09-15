@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="sk" data-strip="a" data-tiles="glass">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<title>N-portal – mock reworku v2</title>
+<style>
+  :root{color-scheme:dark;--text:#e9eef7;--muted:#98a3b6;--blue:#3d7de0;--blue2:#5b95f0;--cyan:#4fc8ff;--green:#34a865;--amber:#d8a03a;--red:#c8403f;--teal:#2a8f86;
+    --glass:rgba(255,255,255,.06);--glass2:rgba(255,255,255,.1);--edge:rgba(255,255,255,.14);--edge2:rgba(255,255,255,.28);
+    --r:22px;--ease:cubic-bezier(.2,.8,.2,1);--dur:480ms}
+  html[data-motion=reduce] *{transition-duration:120ms!important;animation-duration:1ms!important}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{height:100%;background:#161a1f}
+  body{height:100%;margin:0;color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;user-select:none;overflow:hidden;background:transparent}
+  /* pozadie: obrázok (bg.jpg), pod ním náhradný prechod; posúva sa so slide prechodom (paralax) */
+  .bg{position:fixed;top:0;bottom:0;left:-4%;width:108%;z-index:-1;background:linear-gradient(120deg,#15181c 0%,#22282f 35%,#2a3440 60%,#1a1f26 100%);transform:translateX(var(--bgx,0));transition:transform var(--dur) var(--ease)}
+  .bg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 30%;opacity:0;transition:opacity 1s}
+  .bg img.ok{opacity:1}
+  .bg::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,13,18,.05),rgba(10,13,18,.3))}
+  html.station-mode{--bgx:-2%} html.skp-mode{--bgx:2%}
+  /* počas prechodu bez rozmazania (výkon staršieho telefónu) */
+  html.moving .glass{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:rgba(22,26,31,.72)!important}
+  .screen{position:fixed;inset:0;display:flex;flex-direction:column;gap:2vh;padding:max(8px,env(safe-area-inset-top)) 12px 8px}
+  .bar{display:flex;align-items:center;gap:2vw;height:7vh;min-height:30px;position:relative}
+  .glass{background:var(--glass);border:1px solid var(--edge);backdrop-filter:blur(18px) saturate(1.2);-webkit-backdrop-filter:blur(18px) saturate(1.2);box-shadow:0 12px 30px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.12)}
+  .tabs{display:flex;border-radius:999px;padding:3px;position:relative}
+  .tab{padding:0 3vw;height:calc(7vh - 6px);display:flex;align-items:center;border:0;border-radius:999px;background:transparent;font:inherit;font-size:3vh;font-weight:600;color:var(--muted);position:relative;z-index:1;transition:color .25s}
+  .tab.on{color:#fff}.tab.auto{box-shadow:inset 0 0 0 1px var(--blue2);color:var(--text)}
+  .tabs .pill{position:absolute;top:3px;bottom:3px;left:0;width:0;border-radius:999px;background:var(--blue);transition:left var(--dur) var(--ease),width var(--dur) var(--ease)}
+  .dot{width:1.6vh;height:1.6vh;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);flex:none}
+  .state{font-size:2.7vh;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+  .brand{margin-left:auto;letter-spacing:.35em;font-size:2.4vh;color:var(--muted);font-weight:600}
+  .tiny{color:var(--muted);border-radius:8px;font-size:2.6vh;width:6vh;height:calc(7vh - 6px)}
+  .main{flex:1;position:relative;min-height:0}
+  .layer{position:absolute;inset:0}
+  .layer.hidden{visibility:hidden;pointer-events:none}
+  .card{border-radius:var(--r);position:relative;overflow:hidden}
+  svg.i{width:1em;height:1em;fill:currentColor;display:block}
+
+  /* ===== Station ===== */
+  .station{height:100%;display:grid;grid-template-columns:.78fr 1fr 1.35fr;gap:2vw;transition:grid-template-columns var(--dur) var(--ease)}
+  .station.detail-open{grid-template-columns:.78fr 1.9fr .9fr}
+  .clock{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2vh 1vw;text-align:center}
+  .time{font-size:22vh;line-height:.82;font-weight:700;letter-spacing:-.04em}
+  .time .d{display:block;height:.82em;overflow:hidden;position:relative}.time .d span{display:block}
+  .day{margin-top:2.6vh;font-size:5vh;font-weight:600}
+  .date{margin-top:.6vh;font-size:3vh;color:var(--muted)}
+  .usage{display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;padding:1vh;touch-action:pan-x}
+  .ring{position:relative;width:34vh;height:34vh;flex:none;transition:width var(--dur) var(--ease),height var(--dur) var(--ease)}
+  .ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+  .ring circle{fill:none;stroke-linecap:round}.ring .track{stroke:rgba(255,255,255,.08)}
+  .ring .fill{transition:stroke-dashoffset .8s var(--ease)}
+  .ring .lbl{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .ring .pct{font-size:8vh;font-weight:700;line-height:1}.ring .name{font-size:3vh;color:var(--muted);margin-top:.6vh}
+  .hint{position:absolute;bottom:.8vh;left:0;right:0;text-align:center;font-size:2vh;color:var(--muted);opacity:.6}
+  /* detail: karta sa roztiahne, kruhy sa zmenšia doľava, vpravo tabuľka */
+  .usage.open{flex-direction:row;justify-content:flex-start;gap:2vw;padding:2vh 2vw}
+  .usage.open .ring{width:20vh;height:20vh}
+  .usage.open .rings{display:flex;flex-direction:column;gap:2vh;justify-content:center}
+  .rings{display:contents}.usage.open .rings{display:flex}
+  .dtl{flex:1;display:none;flex-direction:column;gap:1.2vh;min-width:0}
+  .usage.open .dtl{display:flex;animation:fade .4s var(--ease)}
+  @keyframes fade{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+  .dtl h3{margin:0;font-size:2.6vh;color:var(--muted);font-weight:600;display:flex;justify-content:space-between}
+  .dtl table{border-collapse:collapse;width:100%;font-size:2.7vh}
+  .dtl th{text-align:left;color:var(--muted);font-weight:500;padding:.8vh 0;border-bottom:1px solid var(--edge)}
+  .dtl td{padding:.9vh 0;border-bottom:1px solid rgba(255,255,255,.06);font-weight:600}
+  .dtl td.k{color:var(--muted);font-weight:500;width:32%}
+  .dtl .warn{color:var(--amber)}.dtl .cd{color:var(--cyan)}
+  .dtl .foot{font-size:2.1vh;color:var(--muted)}
+  .music{display:flex;flex-direction:column;justify-content:flex-end;padding:2.5vh 3vw;gap:1vh;isolation:isolate;touch-action:pan-y}
+  .cover,.cover2{position:absolute;inset:0;z-index:-2;background:var(--c,linear-gradient(135deg,#2a3440,#161a1f));transition:opacity .5s}
+  .cover2{opacity:0}
+  .shade{position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(22,26,31,.15),rgba(22,26,31,.55) 45%,rgba(22,26,31,.92))}
+  .title{font-size:4.2vh;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .artist{font-size:2.9vh;color:#c9d3e6}
+  .ctrl{display:grid;grid-template-columns:1fr 1.2fr 1fr;margin-top:1vh}
+  .ctrl button{height:11vh;border:0;background:transparent;color:rgba(255,255,255,.85);font-size:5vh;display:flex;align-items:center;justify-content:center;transition:transform .1s,color .2s}
+  .ctrl button.main{font-size:7.5vh;color:#fff}.ctrl button:active{transform:scale(.85)}
+
+  /* ===== SKP ===== */
+  .skp{height:100%;display:grid;gap:1.5vw;grid-template-columns:20% 1fr}
+  /* zúžený Station: bez rámčeka, priamo na pozadí */
+  .strip{display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:.5vh 0}
+  .strip .t{font-size:9.5vh;font-weight:700;line-height:1;text-align:center;text-shadow:0 2px 14px rgba(0,0,0,.7);letter-spacing:-.03em;white-space:nowrap}
+  .strip .dd{font-size:2.6vh;color:var(--muted);margin-top:.8vh;text-align:center}
+  .strip .dd.long{font-size:2.5vh;white-space:nowrap}
+  .strip .player{display:flex;flex-direction:column;align-items:center;gap:.6vh;width:100%}
+  .strip .rings{display:flex;flex-direction:row;gap:1.4vw;align-items:flex-start;justify-content:center}
+  .strip .rw{display:flex;flex-direction:column;align-items:center;gap:.5vh}
+  .ring.mini{width:14vh;height:14vh}.ring.mini .pct{font-size:4vh}
+  .strip .rw .name{font-size:2.5vh;color:var(--muted)}
+  .strip .mus{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:1vw;width:100%}
+  .strip .mus button{width:9vh;height:9vh;border:0;background:transparent;color:rgba(255,255,255,.85);font-size:4.4vh;display:flex;align-items:center;justify-content:center;border-radius:50%}
+  .strip .mus button.main{width:13.5vh;height:13.5vh;font-size:6.4vh;color:#fff;background:rgba(255,255,255,.1);border:1px solid var(--edge);box-shadow:inset 0 1px 0 rgba(255,255,255,.15)}
+  .strip .mus button:active{transform:scale(.9)}
+  .strip .np{font-size:2.8vh;color:var(--muted);text-align:center;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 .5vw;margin-bottom:.8vh}
+  .strip .np b{color:var(--text);font-weight:600}
+  .skpmain{display:flex;flex-direction:column;gap:1.2vh;min-height:0;position:relative}
+  .grid{flex:1;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(2,1fr);gap:1.6vw;min-height:0}
+  .tile{border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2vh;color:var(--text);padding:0;font:inherit;position:relative;transition:transform .08s var(--ease),background .4s,border-color .4s,box-shadow .2s}
+  html[data-tiles=glass] .tile{background:var(--glass);border:1px solid var(--edge);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 10px 24px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.12)}
+  html[data-tiles=glass] .tile.primary{background:linear-gradient(160deg,rgba(61,125,224,.55),rgba(61,125,224,.25));border-color:rgba(120,170,255,.6)}
+  html[data-tiles=blue] .tile{background:linear-gradient(160deg,#2f7ae5,#1d55b4);border:1px solid #5a9bff;box-shadow:0 0 0 1px rgba(90,155,255,.35),0 12px 30px rgba(47,122,229,.35)}
+  .tile:active{transform:scale(.96);border-color:var(--edge2);box-shadow:0 0 0 2px rgba(255,255,255,.35),0 10px 24px rgba(0,0,0,.3)}
+  .tile .ic{font-size:6vh;line-height:1;color:rgba(255,255,255,.9)}.tile .nm{font-size:3vh;font-weight:600;text-align:center;line-height:1.15}.tile .et{font-size:2.1vh;color:var(--muted);min-height:2.1vh}
+  .tile.sent{animation:breathe .9s infinite}
+  @keyframes breathe{0%,100%{box-shadow:0 0 0 1px rgba(255,255,255,.2)}50%{box-shadow:0 0 0 4px rgba(255,255,255,.45)}}
+  .tile.ok{background:linear-gradient(160deg,rgba(52,168,101,.7),rgba(52,168,101,.35))!important;border-color:#6fd69a!important;transition:background .15s,border-color .15s}
+  .tile.err{background:linear-gradient(160deg,rgba(200,64,63,.75),rgba(200,64,63,.4))!important;border-color:#ff8a89!important;transition:background .15s,border-color .15s}
+  .tile.active{background:linear-gradient(160deg,rgba(42,143,134,.7),rgba(42,143,134,.35))!important;border-color:#3ec6b0!important}
+  .toast{position:absolute;left:50%;bottom:0;transform:translate(-50%,120%);border-radius:999px;padding:1.2vh 2.4vw;font-size:2.6vh;display:flex;gap:1.2vw;align-items:center;transition:transform .25s var(--ease),opacity .2s;opacity:0;white-space:nowrap}
+  .toast.show{transform:translate(-50%,0);opacity:1}.toast.ok{border-color:#3fbf7a}.toast.err{border-color:#ff8a89;color:#ffb3b2}
+  /* nastavenia */
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(60vw,420px);background:rgba(22,26,31,.92);backdrop-filter:blur(20px);border-left:1px solid var(--edge);transform:translateX(100%);transition:transform .3s var(--ease);padding:2vh 2vw;display:flex;flex-direction:column;gap:1.4vh;z-index:20;overflow:auto}
+  .drawer.open{transform:none}.drawer h2{margin:0;font-size:3vh}.drawer label{font-size:2.4vh;color:var(--muted)}
+  .seg{display:flex;gap:.6vw}.seg button,.drawer .demo{border:1px solid var(--edge);background:var(--glass);color:var(--text);border-radius:10px;padding:1.2vh .8vw;font:inherit;font-size:2.3vh;text-align:left}
+  .seg button{flex:1;text-align:center}.seg button.on{background:var(--blue);border-color:var(--blue2)}
+</style>
+</head>
+<body>
+<div class="bg"><img class="ok" src="bg.jpg?v=3" alt="" onerror="this.classList.remove('ok')" /></div>
+<svg width="0" height="0" style="position:absolute"><defs>
+  <symbol id="i-prev" viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></symbol>
+</defs></svg>
+
+<div class="screen">
+  <div class="bar">
+    <div class="tabs glass" id="tabs"><i class="pill" id="pill"></i>
+      <button class="tab" data-m="auto">AUTO</button><button class="tab" data-m="station">Station</button><button class="tab" data-m="skp">SKP</button>
+    </div>
+    <span class="dot"></span>
+    <span class="state">SketchUp: Kuchyňa Novák · výber: 1</span>
+    <span class="brand">NOXUN</span>
+    <button class="tiny glass" id="gear">⚙</button>
+  </div>
+
+  <div class="main">
+    <div class="layer" id="Lstation">
+      <div class="station" id="stationGrid">
+        <section class="card glass clock" id="cClock">
+          <div class="time"><div class="d" id="hh"><span>20</span></div><div class="d" id="mm"><span>47</span></div></div>
+          <div class="day" id="day">Utorok</div>
+          <div class="date" id="date">15. september 2026</div>
+        </section>
+
+        <section class="card glass usage" id="cUsage">
+          <div class="rings" id="bigRings">
+            <div class="ring" id="r1"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="44" stroke-width="9"/><circle class="fill" cx="50" cy="50" r="44" stroke-width="9" stroke="#c8403f" stroke-dasharray="276.5" stroke-dashoffset="276.5"/></svg><div class="lbl"><div class="pct" data-to="100">0%</div><div class="name">Codex</div></div></div>
+            <div class="ring" id="r2"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="44" stroke-width="8"/><circle class="fill" cx="50" cy="50" r="44" stroke-width="8" stroke="#5b95f0" stroke-dasharray="276.5" stroke-dashoffset="276.5"/><circle class="track" cx="50" cy="50" r="33" stroke-width="6"/><circle class="fill" cx="50" cy="50" r="33" stroke-width="6" stroke="#4fc8ff" stroke-dasharray="207.3" stroke-dashoffset="207.3"/></svg><div class="lbl"><div class="pct" data-to="33">0%</div><div class="name">Claude</div></div></div>
+          </div>
+          <div class="dtl">
+            <h3><span>Usage</span><span>▼ zavrieť</span></h3>
+            <table>
+              <tr><th></th><th>Codex</th><th>Claude</th></tr>
+              <tr><td class="k">Týždeň</td><td>100 %</td><td>33 %</td></tr>
+              <tr><td class="k">Reset týždňa</td><td>so 19. 9. · 10:25</td><td>so 19. 9. · 21:00</td></tr>
+              <tr><td class="k">5h okno</td><td>—</td><td>71 %</td></tr>
+              <tr><td class="k">Reset 5h</td><td>—</td><td class="cd">o 1 h 12 min</td></tr>
+              <tr><td class="k">Stav</td><td>ok</td><td class="warn">rate limit</td></tr>
+            </table>
+            <div class="foot">Dáta z NOXUN AI Usage · pred 2 min · LIVE</div>
+          </div>
+          <div class="hint" id="hint">▲ potiahni hore: detail</div>
+        </section>
+
+        <section class="card glass music" id="cMusic">
+          <div class="cover" id="cover"></div><div class="cover2" id="cover2"></div><div class="shade"></div>
+          <div><div class="title" id="title">Bars</div><div class="artist" id="artist">Ektor</div></div>
+          <div class="ctrl"><button id="prev"><svg class="i"><use href="#i-prev"/></svg></button><button class="main" id="play"><svg class="i"><use href="#i-pause"/></svg></button><button id="next"><svg class="i"><use href="#i-next"/></svg></button></div>
+        </section>
+      </div>
+    </div>
+
+    <div class="layer hidden" id="Lskp">
+      <div class="skp">
+        <!-- zúžený Station: bez rámčeka -->
+        <aside class="strip">
+          <div><div class="t"><span class="hh2">20</span>:<span class="mm2">47</span></div><div class="dd long">Utorok 15. september</div></div>
+          <div class="player">
+            <div class="np" id="npB">♪ <b>Bars</b> · Ektor</div>
+            <div class="mus"><button><svg class="i"><use href="#i-prev"/></svg></button><button class="main"><svg class="i"><use href="#i-pause"/></svg></button><button><svg class="i"><use href="#i-next"/></svg></button></div>
+          </div>
+          <div class="rings">
+            <div class="rw"><div class="ring mini"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="42" stroke-width="10"/><circle class="fill" cx="50" cy="50" r="42" stroke-width="10" stroke="#c8403f" stroke-dasharray="263.9" stroke-dashoffset="0"/></svg><div class="lbl"><div class="pct">100%</div></div></div><div class="name">Codex</div></div>
+            <div class="rw"><div class="ring mini"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="42" stroke-width="10"/><circle class="fill" cx="50" cy="50" r="42" stroke-width="10" stroke="#5b95f0" stroke-dasharray="263.9" stroke-dashoffset="177"/><circle class="track" cx="50" cy="50" r="29" stroke-width="7"/><circle class="fill" cx="50" cy="50" r="29" stroke-width="7" stroke="#4fc8ff" stroke-dasharray="182.2" stroke-dashoffset="53"/></svg><div class="lbl"><div class="pct">33%</div></div></div><div class="name">Claude</div></div>
+          </div>
+        </aside>
+        <div class="skpmain">
+          <div class="grid" id="grid">
+            <button class="tile primary" data-r="ok"><span class="ic">◎</span><span class="nm">Zamerať výber</span><span class="et"></span></button>
+            <button class="tile" data-r="ok"><span class="ic">✥</span><span class="nm">Pohľad</span><span class="et">potiahni</span></button>
+            <button class="tile" data-r="ok"><span class="ic">⬡</span><span class="nm">ISO</span><span class="et"></span></button>
+            <button class="tile" data-r="toggle"><span class="ic">◈</span><span class="nm">X‑Ray</span><span class="et">vypnutý</span></button>
+            <button class="tile" data-r="ok"><span class="ic">↺</span><span class="nm">Predošlý pohľad</span><span class="et"></span></button>
+            <button class="tile" data-r="ok"><span class="ic">⛶</span><span class="nm">Celý model</span><span class="et"></span></button>
+            <button class="tile" data-r="toggle"><span class="ic">◉</span><span class="nm">Izolovať</span><span class="et">výber</span></button>
+            <button class="tile" data-r="err"><span class="ic">◌</span><span class="nm">Skryté objekty</span><span class="et">skryté</span></button>
+          </div>
+          <div class="toast glass" id="toast"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="drawer" id="drawer">
+  <h2>Nastavenia mocku v2</h2>
+  <label>Výplň dlaždíc</label>
+  <div class="seg" id="segTiles"><button data-v="glass" class="on">Sklo</button><button data-v="blue">Modrá</button></div>
+  <label>Obmedziť pohyb</label>
+  <div class="seg" id="segM"><button data-v="0" class="on">Nie</button><button data-v="1">Áno</button></div>
+  <label>Ukážky</label>
+  <button class="demo" id="dTrack">Zmena skladby</button>
+  <button class="demo" id="dMinute">Preklopenie minúty</button>
+  <button class="demo" id="dClose">Zavrieť</button>
+</div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)], html=document.documentElement;
+let pref='auto', mode='station', busy=false, reduce=false;
+const Lst=$('#Lstation'), Lsk=$('#Lskp'), EASE='cubic-bezier(.2,.8,.2,1)';
+const dur=()=>reduce?120:480;
+function movePill(){ const b=$(`.tab[data-m=${pref}]`), r=b.getBoundingClientRect(), p=$('#tabs').getBoundingClientRect(); $('#pill').style.left=(r.left-p.left)+'px'; $('#pill').style.width=r.width+'px';
+  $$('.tab').forEach(t=>{ t.classList.toggle('on',t.dataset.m===pref); t.classList.toggle('auto',pref==='auto'&&t.dataset.m===mode); }); }
+$$('.tab').forEach(t=>t.onclick=()=>{ pref=t.dataset.m; movePill(); if(pref!=='auto') switchTo(pref); }); movePill();
+
+/* Slide: Station je vpravo, SKP vľavo. Pozadie sa posunie o 4 % tým istým smerom (paralax).
+   Počas prechodu je vypnuté rozmazanie skla (html.moving), aby starší telefón stíhal. */
+html.classList.add('station-mode');
+async function switchTo(next){ if(next===mode||busy) return; busy=true; const D=dur(), toSkp=next==='skp';
+  const show=toSkp?Lsk:Lst, hide=toSkp?Lst:Lsk;
+  if(toSkp) closeDetail();
+  html.classList.add('moving'); show.classList.remove('hidden');
+  const dir=toSkp?1:-1; // do SKP: obsah odchádza doprava, SKP prichádza zľava
+  html.classList.toggle('station-mode',!toSkp); html.classList.toggle('skp-mode',toSkp);
+  const a1=hide.animate([{transform:'none',opacity:1},{transform:`translateX(${dir*100}%)`,opacity:.6}],{duration:D,easing:EASE,fill:'forwards'});
+  const a2=show.animate([{transform:`translateX(${-dir*100}%)`,opacity:.6},{transform:'none',opacity:1}],{duration:D,easing:EASE});
+  await Promise.all([a1.finished,a2.finished].map(p=>p.catch(()=>{}))); a1.cancel(); a2.cancel();
+  hide.classList.add('hidden'); html.classList.remove('moving'); mode=next; movePill(); busy=false; }
+
+/* hodiny */
+const DAYS=['Nedeľa','Pondelok','Utorok','Streda','Štvrtok','Piatok','Sobota'], DS=['ne','po','ut','st','št','pi','so'], MON=['január','február','marec','apríl','máj','jún','júl','august','september','október','november','december'];
+function flipDigit(el,val){ const old=el.firstElementChild; if(old.textContent===val) return; const nw=document.createElement('span'); nw.textContent=val; el.appendChild(nw);
+  old.animate([{transform:'none',opacity:1},{transform:'translateY(-100%)',opacity:0}],{duration:300,easing:EASE,fill:'forwards'});
+  nw.animate([{transform:'translateY(100%)',opacity:0},{transform:'none',opacity:1}],{duration:300,easing:EASE}).finished.then(()=>old.remove()); }
+function tick(){ const d=new Date(),h=String(d.getHours()).padStart(2,'0'),m=String(d.getMinutes()).padStart(2,'0');
+  flipDigit($('#hh'),h); flipDigit($('#mm'),m); $$('.hh2').forEach(e=>e.textContent=h); $$('.mm2').forEach(e=>e.textContent=m);
+  $('#day').textContent=DAYS[d.getDay()]; $('#date').textContent=`${d.getDate()}. ${MON[d.getMonth()]} ${d.getFullYear()}`;
+  $$('.dd:not(.long)').forEach(e=>e.textContent=`${DS[d.getDay()]} ${d.getDate()}. ${d.getMonth()+1}.`);
+  $$('.dd.long').forEach(e=>e.textContent=`${DAYS[d.getDay()]} ${d.getDate()}. ${MON[d.getMonth()]}`); }
+tick(); setInterval(tick,1000);
+
+/* kruhy */
+(function(){ const vals=[[100],[33,71]]; [$('#r1'),$('#r2')].forEach((r,i)=>{ r.querySelectorAll('.fill').forEach((c,j)=>{ const C=Number(c.getAttribute('stroke-dasharray')); requestAnimationFrame(()=>c.setAttribute('stroke-dashoffset',C*(1-vals[i][j]/100))); });
+  const p=r.querySelector('.pct'), to=Number(p.dataset.to), t0=performance.now(); (function up(){ const k=Math.min(1,(performance.now()-t0)/800); p.textContent=Math.round(to*(1-Math.pow(1-k,3)))+'%'; if(k<1) requestAnimationFrame(up); })(); }); })();
+
+/* detail usage: roztiahne kartu (prehrávač sa zmenší) */
+const grid=$('#stationGrid'), usage=$('#cUsage');
+function openDetail(){ usage.classList.add('open'); grid.classList.add('detail-open'); $('#hint').style.display='none'; }
+function closeDetail(){ usage.classList.remove('open'); grid.classList.remove('detail-open'); $('#hint').style.display=''; }
+(()=>{ let y0=null; usage.addEventListener('pointerdown',e=>{y0=e.clientY;});
+  usage.addEventListener('pointerup',e=>{ if(y0===null) return; const dy=e.clientY-y0; y0=null;
+    if(dy<-30) openDetail(); else if(dy>30) closeDetail(); else { usage.classList.contains('open')?closeDetail():openDetail(); } }); })();
+
+/* hudba */
+const tracks=[{t:'Bars',a:'Ektor',c:'radial-gradient(60% 70% at 70% 30%,#4a3a8a,transparent 60%),linear-gradient(135deg,#2a3440,#161a1f)'},{t:'Je mi to fuk',a:'Ektor & DJ Wich',c:'radial-gradient(60% 70% at 30% 40%,#8a4a3a,transparent 60%),linear-gradient(135deg,#3a2a2a,#161a1f)'},{t:'2LÁK',a:'Strapo feat. Marián Čekovský',c:'radial-gradient(60% 70% at 60% 60%,#2f6a4a,transparent 60%),linear-gradient(135deg,#1b3a2a,#161a1f)'}];
+let ti=0, playing=true, coverA=true; $('#cover').style.setProperty('--c',tracks[0].c);
+function setTrack(i){ ti=(i+tracks.length)%tracks.length; const tr=tracks[ti]; const [a,b]=coverA?[$('#cover'),$('#cover2')]:[$('#cover2'),$('#cover')]; b.style.setProperty('--c',tr.c); b.style.opacity=1; a.style.opacity=0; coverA=!coverA;
+  [['#title',tr.t],['#artist',tr.a]].forEach(([s,v])=>{ const el=$(s); el.animate([{transform:'none',opacity:1},{transform:'translateY(-60%)',opacity:0}],{duration:200,easing:EASE}).finished.then(()=>{ el.textContent=v; el.animate([{transform:'translateY(60%)',opacity:0},{transform:'none',opacity:1}],{duration:250,easing:EASE}); }); });
+  $('#npB').innerHTML='♪ <b>'+tr.t+'</b> · '+tr.a; }
+$('#next').onclick=()=>setTrack(ti+1); $('#prev').onclick=()=>setTrack(ti-1);
+$('#play').onclick=()=>{ playing=!playing; $('#play').innerHTML=`<svg class="i"><use href="#${playing?'i-pause':'i-play'}"/></svg>`; };
+
+/* dlaždice + toast */
+let toastT=null; function toast(kind,text){ const t=$('#toast'); t.className='toast glass '+kind; t.textContent=(kind==='ok'?'✓ ':'⚠ ')+text; requestAnimationFrame(()=>t.classList.add('show')); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),kind==='ok'?1800:3500); }
+$$('#grid .tile').forEach(t=>{ t.onclick=()=>{ const r=t.dataset.r; t.classList.remove('ok','err'); t.classList.add('sent');
+  setTimeout(()=>{ t.classList.remove('sent'); const nm=t.querySelector('.nm'), et=t.querySelector('.et');
+    if(r==='toggle'){ const on=t.classList.toggle('active'); if(nm.textContent==='X‑Ray'){ et.textContent=on?'zapnutý':'vypnutý'; } else { nm.textContent=on?'Obnoviť':'Izolovať'; et.textContent=on?'skrytých 7':'výber'; } toast('ok',on?'Zapnuté':'Vypnuté'); }
+    else if(r==='err'){ t.classList.add('err'); toast('err','Nič nie je vybrané'); setTimeout(()=>t.classList.remove('err'),3500); }
+    else { t.classList.add('ok'); toast('ok',nm.textContent+': 1 objekt'); setTimeout(()=>t.classList.remove('ok'),2000); } },450); }; });
+
+/* nastavenia */
+$('#gear').onclick=()=>$('#drawer').classList.add('open'); $('#dClose').onclick=()=>$('#drawer').classList.remove('open');
+function seg(id,fn){ $$(`#${id} button`).forEach(b=>b.onclick=()=>{ $$(`#${id} button`).forEach(x=>x.classList.remove('on')); b.classList.add('on'); fn(b.dataset.v); }); }
+seg('segTiles',v=>html.dataset.tiles=v); seg('segM',v=>{reduce=v==='1'; html.dataset.motion=reduce?'reduce':'';});
+$('#dTrack').onclick=()=>{ $('#drawer').classList.remove('open'); if(mode!=='station') switchTo('station'); setTimeout(()=>setTrack(ti+1),500); };
+$('#dMinute').onclick=()=>{ $('#drawer').classList.remove('open'); if(mode!=='station') switchTo('station'); setTimeout(()=>{ const v=String((Number($('#mm').firstElementChild.textContent)+1)%60).padStart(2,'0'); flipDigit($('#mm'),v); },500); };
+document.addEventListener('dblclick',()=>{ document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{}); });
+</script>
+</body>
+</html>

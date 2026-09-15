@@ -30,6 +30,7 @@ Smer: **PWA na mobile + lokálna služba na PC + Ruby prijímač v SketchUpe** (
 | Súbor | Účel |
 |---|---|
 | [Analýza smeru](docs/SMER.md) | **Zmena smeru 15. 9. 2026:** PWA na mobile + lokálna služba na PC namiesto Rainmeter + spacedesk. Čo použiť, čo vlastnou cestou, etapy nanovo. Na prejdenie. |
+| [Návrh reworku UI/UX](docs/REWORK.md) | Zásady, prechod Station ↔ SKP (3 varianty), 12 drobných funkcií, katalóg animácií. Interaktívny mock `app/public/mock2.html`. |
 | [Kontext](docs/KONTEXT.md) | Doterajšie testy, zadanie, architektúra a otvorené otázky. |
 | [Plán](docs/PLAN.md) | Malé etapy a odložené nápady. |
 | [Postup a stav](docs/POSTUP.md) | Najbližší test E0, kontrolný zoznam a záznam výsledkov. |

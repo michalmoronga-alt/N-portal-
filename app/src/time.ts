@@ -18,6 +18,21 @@ export function formatDateLong(d: Date): string {
   return `${DAYS[d.getDay()]}, ${d.getDate()}. ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+/** „Utorok 15. september“ – bez roka, do úzkeho pásu. */
+export function formatDateDayMonth(d: Date): string {
+  return `${DAYS[d.getDay()]} ${d.getDate()}. ${MONTHS[d.getMonth()]}`;
+}
+
+/** Zvyšok do času resetu: „o 1 h 12 min“, „o 8 min“, „teraz“. */
+export function formatCountdown(epochSec: number, now = Date.now()): string {
+  const s = Math.max(0, Math.round(epochSec - now / 1000));
+  if (s < 60) return 'teraz';
+  const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60);
+  if (h === 0) return `o ${m} min`;
+  if (h >= 24) return `o ${Math.floor(h / 24)} d ${h % 24} h`;
+  return `o ${h} h ${m} min`;
+}
+
 export function formatDateShort(d: Date): string {
   return `${DAYS_SHORT[d.getDay()]} ${d.getDate()}. ${d.getMonth() + 1}.`;
 }

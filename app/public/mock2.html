@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<title>N-portal – mock reworku</title>
+<style>
+  :root{color-scheme:dark;--bg:#0b0f17;--card:#141b28;--card2:#182131;--line:#243044;--text:#e9eef7;--muted:#8b96ab;
+    --blue:#2f7ae5;--blue2:#3f8dff;--cyan:#3ec6ff;--green:#2fa35a;--amber:#e0a12a;--red:#c8403f;--grey:#2b3446;--teal:#1f6f6a;
+    --r:22px;--ease:cubic-bezier(.2,.8,.2,1);--dur:380ms;--glow:0 0 0 rgba(0,0,0,0)}
+  html[data-theme=c]{--card:#10192b;--card2:#15223a;--line:#2a4a7a;--glow:0 0 18px rgba(63,141,255,.45)}
+  html[data-motion=reduce] *{transition-duration:120ms!important;animation-duration:1ms!important}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;user-select:none;overflow:hidden}
+  body{background:radial-gradient(120% 90% at 20% 0%,#15213a 0%,var(--bg) 55%);transition:filter .4s}
+  body.offline{filter:grayscale(.85) brightness(.8)}
+  .screen{position:fixed;inset:0;display:flex;flex-direction:column;gap:2vh;padding:max(8px,env(safe-area-inset-top)) 12px 8px}
+  /* pás */
+  .bar{display:flex;align-items:center;gap:2vw;height:7vh;min-height:30px;position:relative}
+  .tabs{display:flex;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:3px;position:relative}
+  .tab{padding:0 3vw;height:calc(7vh - 6px);display:flex;align-items:center;border:0;border-radius:999px;background:transparent;font:inherit;font-size:3vh;font-weight:600;color:var(--muted);position:relative;z-index:1;transition:color .25s}
+  .tab.on{color:#fff}
+  .tab.auto{box-shadow:inset 0 0 0 1px var(--blue);color:var(--text)}
+  .tabs .pill{position:absolute;top:3px;bottom:3px;left:0;width:0;border-radius:999px;background:var(--blue);transition:left var(--dur) var(--ease),width var(--dur) var(--ease)}
+  .dot{width:1.6vh;height:1.6vh;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);flex:none}
+  .dot.pulse{animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .state{font-size:2.7vh;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+  .autolbl{position:absolute;left:0;top:100%;margin-top:.6vh;font-size:2.2vh;color:var(--blue2);opacity:0;transform:translateY(-6px);transition:opacity .25s,transform .25s;pointer-events:none}
+  .autolbl.show{opacity:1;transform:none}
+  .brand{margin-left:auto;letter-spacing:.35em;font-size:2.4vh;color:var(--muted);font-weight:600}
+  .tiny{background:var(--card);color:var(--muted);border:1px solid var(--line);border-radius:8px;font-size:2.6vh;width:6vh;height:calc(7vh - 6px)}
+  .main{flex:1;position:relative;min-height:0}
+  .layer{position:absolute;inset:0;will-change:transform,opacity}
+  .layer.hidden{visibility:hidden;pointer-events:none}
+  .card{background:linear-gradient(160deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:var(--r);box-shadow:0 12px 30px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.05),var(--glow);position:relative;overflow:hidden}
+  /* Station */
+  .station{height:100%;display:grid;grid-template-columns:1.05fr 1fr 1.25fr;gap:2vw}
+  .clock{display:flex;flex-direction:column;justify-content:center;padding:2vh 3vw}
+  .time{font-size:26vh;line-height:.82;font-weight:700;letter-spacing:-.04em}
+  .time .d{display:block;height:.82em;overflow:hidden;position:relative}
+  .time .d span{display:block}
+  .date{margin-top:2.5vh;font-size:3.7vh;color:var(--muted)}
+  .countdown{margin-top:1vh;font-size:2.5vh;color:var(--cyan)}
+  .usage{display:flex;align-items:center;justify-content:space-around;padding:1vh;touch-action:pan-x}
+  .ring{position:relative;width:27vh;height:27vh}
+  .ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+  .ring circle{fill:none;stroke-linecap:round}
+  .ring .track{stroke:#1f2a3d}
+  .ring .fill{transition:stroke-dashoffset .8s var(--ease)}
+  .ring .lbl{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .ring .pct{font-size:7.2vh;font-weight:700;line-height:1}
+  .ring .name{font-size:2.8vh;color:var(--muted);margin-top:.6vh}
+  .ring .reset{font-size:2.3vh;color:var(--muted);opacity:.8}
+  .hint{position:absolute;bottom:1vh;left:0;right:0;text-align:center;font-size:2vh;color:var(--muted);opacity:.7}
+  .detail{position:absolute;inset:0;background:linear-gradient(160deg,#1b2740,#121a2a);padding:2.5vh 3vw;transform:translateY(102%);transition:transform var(--dur) var(--ease);display:grid;grid-template-columns:1fr 1fr;gap:1.5vh 2vw;align-content:start;touch-action:none}
+  .detail.open{transform:none}
+  .detail h3{grid-column:1/-1;margin:0;font-size:2.8vh;color:var(--muted);font-weight:600;display:flex;justify-content:space-between}
+  .detail .k{font-size:2.2vh;color:var(--muted)}.detail .v{font-size:3.2vh;font-weight:600}
+  .detail .warn{color:var(--amber)}
+  .music{display:flex;flex-direction:column;justify-content:flex-end;padding:2.5vh 3vw;gap:1vh;isolation:isolate;touch-action:pan-y}
+  .cover,.cover2{position:absolute;inset:0;z-index:-2;background:var(--c,linear-gradient(135deg,#1b2a4a,#0b1020));transition:opacity .5s}
+  .cover2{z-index:-2;opacity:0}
+  .shade{position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(11,15,23,.1),rgba(11,15,23,.55) 45%,rgba(11,15,23,.93))}
+  .title{font-size:4.4vh;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 2px 8px rgba(0,0,0,.6)}
+  .artist{font-size:3vh;color:#c9d3e6}
+  .prog{height:.8vh;border-radius:999px;background:rgba(255,255,255,.15);margin-top:1vh;overflow:hidden}
+  .prog b{display:block;height:100%;width:0;background:#fff;transition:width 1s linear}
+  .ctrl{display:grid;grid-template-columns:1fr 1.2fr 1fr;margin-top:1vh}
+  .ctrl button{height:11vh;border:0;background:transparent;color:#fff;font-size:5.5vh;text-shadow:0 2px 10px rgba(0,0,0,.7);transition:transform .1s}
+  .ctrl button.main{font-size:8vh}.ctrl button:active{transform:scale(.85)}
+  /* SKP */
+  .skp{height:100%;display:grid;grid-template-columns:13% 1fr;gap:2vw}
+  .strip{display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:1.5vh .5vw}
+  .strip .t{font-size:6.2vh;font-weight:700;line-height:.9;text-align:center}
+  .strip .dd{font-size:2.1vh;color:var(--muted);margin-top:.8vh}
+  .rings{display:flex;flex-direction:column;gap:1.2vh;align-items:center}
+  .ring.mini{width:10.5vh;height:10.5vh}.ring.mini .pct{font-size:3vh}.ring.mini .name{font-size:1.8vh;margin-top:.2vh}
+  .mus{display:flex;flex-direction:column;gap:.4vh}.mus button{width:6vh;height:5vh;border:0;background:transparent;color:#fff;font-size:3vh}
+  .skpmain{display:flex;flex-direction:column;gap:1.2vh;min-height:0;position:relative}
+  .grid{flex:1;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(2,1fr);gap:1.6vw;min-height:0}
+  .tile{border-radius:20px;border:1px solid #5a9bff;background:linear-gradient(160deg,#2f7ae5,#1d55b4);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2vh;color:#fff;padding:0;font:inherit;box-shadow:0 0 0 1px rgba(90,155,255,.35),0 12px 30px rgba(47,122,229,.35),var(--glow);transition:transform .08s var(--ease),background .4s,border-color .4s,box-shadow .2s;position:relative}
+  .tile:active{transform:scale(.96);box-shadow:0 0 0 2px #9cc4ff,0 12px 30px rgba(47,122,229,.5)}
+  .tile .ic{font-size:6vh;line-height:1}.tile .nm{font-size:3.1vh;font-weight:600;text-align:center;line-height:1.15}.tile .et{font-size:2.2vh;color:rgba(255,255,255,.7);min-height:2.2vh}
+  .tile.sent{animation:breathe .9s infinite}
+  @keyframes breathe{0%,100%{box-shadow:0 0 0 1px rgba(255,255,255,.3),0 12px 30px rgba(224,161,42,.3)}50%{box-shadow:0 0 0 4px rgba(255,255,255,.55),0 12px 30px rgba(224,161,42,.6)}}
+  .tile.ok{background:linear-gradient(160deg,var(--green),#1f7a42);border-color:#6fd69a;transition:background .15s,border-color .15s}
+  .tile.err{background:linear-gradient(160deg,var(--red),#8f2c2b);border-color:#ff8a89;transition:background .15s,border-color .15s}
+  .tile.active{background:linear-gradient(160deg,var(--teal),#134a47);border-color:#3ec6b0}
+  .toast{position:absolute;left:50%;bottom:0;transform:translate(-50%,120%);background:rgba(11,15,23,.92);border:1px solid var(--line);border-radius:999px;padding:1.2vh 2.4vw;font-size:2.6vh;display:flex;gap:1.2vw;align-items:center;transition:transform .25s var(--ease),opacity .2s;opacity:0;white-space:nowrap}
+  .toast.show{transform:translate(-50%,0);opacity:1}
+  .toast.ok{border-color:#3fbf7a}.toast.err{border-color:#ff8a89;color:#ffb3b2}
+  /* nastavenia */
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(60vw,420px);background:#0f1521;border-left:1px solid var(--line);transform:translateX(100%);transition:transform .3s var(--ease);padding:2vh 2vw;display:flex;flex-direction:column;gap:1.4vh;z-index:20;overflow:auto}
+  .drawer.open{transform:none}
+  .drawer h2{margin:0;font-size:3vh}.drawer label{font-size:2.4vh;color:var(--muted)}
+  .seg{display:flex;gap:.6vw}.seg button{flex:1;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;padding:1.2vh 0;font:inherit;font-size:2.4vh}
+  .seg button.on{background:var(--blue);border-color:var(--blue2)}
+  .drawer .demo{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;padding:1.4vh;font:inherit;font-size:2.4vh;text-align:left}
+  .banner{position:fixed;left:0;right:0;top:0;background:var(--red);color:#fff;text-align:center;font-size:2.6vh;padding:.8vh;transform:translateY(-100%);transition:transform .3s var(--ease);z-index:30}
+  .banner.show{transform:none}
+  .ambient{position:fixed;inset:0;background:rgba(0,0,0,.6);opacity:0;pointer-events:none;transition:opacity 1.5s;z-index:15;display:flex;align-items:center;justify-content:center}
+  .ambient.on{opacity:1;pointer-events:auto}
+  .ambient .big{font-size:40vh;font-weight:700;letter-spacing:-.04em;line-height:1;color:#c9d3e6}
+</style>
+</head>
+<body>
+<div class="banner" id="banner">Služba na PC neodpovedá – skúšam znova…</div>
+<div class="ambient" id="ambient"><div class="big" id="ambTime">20:47</div></div>
+
+<div class="screen">
+  <div class="bar">
+    <div class="tabs" id="tabs"><i class="pill" id="pill"></i>
+      <button class="tab" data-m="auto">AUTO</button>
+      <button class="tab" data-m="station">Station</button>
+      <button class="tab" data-m="skp">SKP</button>
+    </div>
+    <span class="dot" id="dot"></span>
+    <span class="state" id="state">SketchUp: Kuchyňa Novák · výber: 1</span>
+    <span class="autolbl" id="autolbl">AUTO → SKP</span>
+    <span class="brand">NOXUN</span>
+    <button class="tiny" id="gear">⚙</button>
+  </div>
+
+  <div class="main">
+    <!-- ===== STATION ===== -->
+    <div class="layer" id="Lstation">
+      <div class="station">
+        <section class="card clock" id="cClock">
+          <div class="time"><div class="d" id="hh"><span>20</span></div><div class="d" id="mm"><span>47</span></div></div>
+          <div class="date" id="date">Utorok, 15. september 2026</div>
+          <div class="countdown" id="cd">Claude 5h · reset o 1 h 12 min</div>
+        </section>
+
+        <section class="card usage" id="cUsage">
+          <div class="ring" id="r1"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="44" stroke-width="9"/><circle class="fill" cx="50" cy="50" r="44" stroke-width="9" stroke="#c8403f" stroke-dasharray="276.5" stroke-dashoffset="276.5"/></svg>
+            <div class="lbl"><div class="pct" data-to="100">0%</div><div class="name">Codex</div><div class="reset">reset so 10:25</div></div></div>
+          <div class="ring" id="r2"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="44" stroke-width="8"/><circle class="fill" cx="50" cy="50" r="44" stroke-width="8" stroke="#3f8dff" stroke-dasharray="276.5" stroke-dashoffset="276.5"/><circle class="track" cx="50" cy="50" r="33" stroke-width="6"/><circle class="fill" cx="50" cy="50" r="33" stroke-width="6" stroke="#3ec6ff" stroke-dasharray="207.3" stroke-dashoffset="207.3"/></svg>
+            <div class="lbl"><div class="pct" data-to="33">0%</div><div class="name">Claude · 5h 71%</div><div class="reset">reset so 21:00</div></div></div>
+          <div class="hint">▲ potiahni hore: detail</div>
+          <div class="detail" id="detail">
+            <h3><span>Usage – detail</span><span>▼ zavrieť</span></h3>
+            <div><div class="k">Codex týždeň</div><div class="v">100 % · reset so 19. 9. 10:25</div></div>
+            <div><div class="k">Codex 5h</div><div class="v">účet bez 5h okna</div></div>
+            <div><div class="k">Claude týždeň</div><div class="v">33 % · reset so 19. 9. 21:00</div></div>
+            <div><div class="k">Claude 5h</div><div class="v">71 % · reset o 1 h 12 min</div></div>
+            <div><div class="k">Stav Claude</div><div class="v warn">rate limit</div></div>
+            <div><div class="k">Dáta</div><div class="v">pred 2 min · LIVE</div></div>
+          </div>
+        </section>
+
+        <section class="card music" id="cMusic">
+          <div class="cover" id="cover"></div><div class="cover2" id="cover2"></div><div class="shade"></div>
+          <div><div class="title" id="title">Bars</div><div class="artist" id="artist">Ektor</div>
+            <div class="prog"><b id="prog"></b></div></div>
+          <div class="ctrl"><button id="prev">⏮</button><button class="main" id="play">⏸</button><button id="next">⏭</button></div>
+        </section>
+      </div>
+    </div>
+
+    <!-- ===== SKP ===== -->
+    <div class="layer hidden" id="Lskp">
+      <div class="skp">
+        <aside class="card strip">
+          <div id="sTime"><div class="t"><span id="hh2">20</span><br><span id="mm2">47</span></div><div class="dd" id="date2">ut 15. 9.</div></div>
+          <div class="rings" id="sRings">
+            <div class="ring mini"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="42" stroke-width="9"/><circle class="fill" cx="50" cy="50" r="42" stroke-width="9" stroke="#c8403f" stroke-dasharray="263.9" stroke-dashoffset="0"/></svg><div class="lbl"><div class="pct">100%</div><div class="name">Codex</div></div></div>
+            <div class="ring mini"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="42" stroke-width="9"/><circle class="fill" cx="50" cy="50" r="42" stroke-width="9" stroke="#3f8dff" stroke-dasharray="263.9" stroke-dashoffset="177"/><circle class="track" cx="50" cy="50" r="30" stroke-width="7"/><circle class="fill" cx="50" cy="50" r="30" stroke-width="7" stroke="#3ec6ff" stroke-dasharray="188.5" stroke-dashoffset="55"/></svg><div class="lbl"><div class="pct">33%</div><div class="name">Claude</div></div></div>
+          </div>
+          <div class="mus" id="sMus"><button>⏮</button><button>⏸</button><button>⏭</button></div>
+        </aside>
+        <div class="skpmain">
+          <div class="grid" id="grid">
+            <button class="tile" data-r="ok"><span class="ic">◎</span><span class="nm">Zamerať výber</span><span class="et"></span></button>
+            <button class="tile" data-r="ok"><span class="ic">✥</span><span class="nm">Pohľad</span><span class="et">potiahni</span></button>
+            <button class="tile" data-r="ok"><span class="ic">⬡</span><span class="nm">ISO</span><span class="et"></span></button>
+            <button class="tile" data-r="toggle"><span class="ic">◈</span><span class="nm">X‑Ray</span><span class="et">vypnutý</span></button>
+            <button class="tile" data-r="ok"><span class="ic">↺</span><span class="nm">Predošlý pohľad</span><span class="et"></span></button>
+            <button class="tile" data-r="ok"><span class="ic">⛶</span><span class="nm">Celý model</span><span class="et"></span></button>
+            <button class="tile" data-r="toggle"><span class="ic">◉</span><span class="nm">Izolovať</span><span class="et">výber</span></button>
+            <button class="tile" data-r="err"><span class="ic">👻</span><span class="nm">Skryté objekty</span><span class="et">skryté</span></button>
+          </div>
+          <div class="toast" id="toast"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- nastavenia mocku -->
+<div class="drawer" id="drawer">
+  <h2>Nastavenia mocku</h2>
+  <label>Prechod Station ↔ SKP</label>
+  <div class="seg" id="segT"><button data-v="morph" class="on">Morph</button><button data-v="slide">Slide</button><button data-v="fade">Fade</button></div>
+  <label>Štýl</label>
+  <div class="seg" id="segS"><button data-v="b" class="on">B Modern</button><button data-v="c">C Hyper</button></div>
+  <label>Haptika (vibrácia pri klepnutí)</label>
+  <div class="seg" id="segH"><button data-v="1" class="on">Zap</button><button data-v="0">Vyp</button></div>
+  <label>Obmedziť pohyb</label>
+  <div class="seg" id="segM"><button data-v="0" class="on">Nie</button><button data-v="1">Áno</button></div>
+  <label>Ukážky</label>
+  <button class="demo" id="dAuto">AUTO → SKP (prepnutie so štítkom)</button>
+  <button class="demo" id="dOffline">Výpadok služby (3 s)</button>
+  <button class="demo" id="dAmbient">Ambientný režim (klepni na ukončenie)</button>
+  <button class="demo" id="dTrack">Zmena skladby (prelínanie obalu)</button>
+  <button class="demo" id="dMinute">Preklopenie minúty na hodinách</button>
+  <button class="demo" id="dClose">Zavrieť</button>
+</div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const html=document.documentElement;
+let cfg={t:'morph',s:'b',h:true,m:false};
+let pref='auto', mode='station', busy=false;
+const Lst=$('#Lstation'), Lsk=$('#Lskp');
+const EASE='cubic-bezier(.2,.8,.2,1)';
+const dur=()=>cfg.m?120:380;
+const vib=(p)=>{ if(cfg.h && navigator.vibrate) navigator.vibrate(p); };
+
+/* ---------- pill v prepínači ---------- */
+function movePill(){ const b=$(`.tab[data-m=${pref}]`); const r=b.getBoundingClientRect(), p=$('#tabs').getBoundingClientRect(); $('#pill').style.left=(r.left-p.left)+'px'; $('#pill').style.width=r.width+'px';
+  $$('.tab').forEach(t=>{ t.classList.toggle('on',t.dataset.m===pref); t.classList.toggle('auto',pref==='auto'&&t.dataset.m===mode); }); }
+$$('.tab').forEach(t=>t.onclick=()=>{ pref=t.dataset.m; vib(8); movePill(); if(pref!=='auto') switchTo(pref); });
+movePill();
+
+/* ---------- prechod ---------- */
+function rect(el){ return el.getBoundingClientRect(); }
+function flipTo(from,to,extraOpacity){ // vráti keyframes pre 'from' smerom k 'to'
+  const a=rect(from), b=rect(to); const sx=b.width/a.width, sy=b.height/a.height;
+  const dx=(b.left+b.width/2)-(a.left+a.width/2), dy=(b.top+b.height/2)-(a.top+a.height/2);
+  return [{transform:'none',opacity:1},{transform:`translate(${dx}px,${dy}px) scale(${sx},${sy})`,opacity:extraOpacity??0}];
+}
+async function switchTo(next){
+  if(next===mode||busy) return; busy=true; const D=dur();
+  const toSkp=next==='skp';
+  const show=toSkp?Lsk:Lst, hide=toSkp?Lst:Lsk;
+  show.classList.remove('hidden');
+  const anims=[];
+  if(cfg.t==='slide'){
+    const dir=toSkp?-1:1;
+    anims.push(hide.animate([{transform:'none',opacity:1},{transform:`translateX(${dir*100}%)`,opacity:.4}],{duration:D,easing:EASE,fill:'forwards'}));
+    anims.push(show.animate([{transform:`translateX(${-dir*100}%)`,opacity:.4},{transform:'none',opacity:1}],{duration:D,easing:EASE}));
+  } else if(cfg.t==='fade'){
+    anims.push(hide.animate([{opacity:1,transform:'scale(1)'},{opacity:0,transform:'scale(.96)'}],{duration:D,easing:EASE,fill:'forwards'}));
+    anims.push(show.animate([{opacity:0,transform:'scale(1.04)'},{opacity:1,transform:'none'}],{duration:D,easing:EASE}));
+  } else { // morph
+    const pairs=[[$('#cClock'),$('#sTime')],[$('#cUsage'),$('#sRings')],[$('#cMusic'),$('#sMus')]];
+    if(toSkp){
+      pairs.forEach(([from,to],i)=>anims.push(from.animate(flipTo(from,to),{duration:D,easing:EASE,fill:'forwards',delay:i*30})));
+      anims.push(Lsk.animate([{opacity:0},{opacity:1}],{duration:D*.7,easing:EASE,delay:D*.3}));
+      $$('#grid .tile').forEach((t,i)=>anims.push(t.animate([{transform:'translateX(40px)',opacity:0},{transform:'none',opacity:1}],{duration:D,easing:EASE,delay:D*.3+i*30,fill:'backwards'})));
+      $('.strip').animate([{opacity:0},{opacity:1}],{duration:D*.5,delay:D*.5});
+    } else {
+      // dlaždice odídu, karty priletia z pásu
+      $$('#grid .tile').forEach((t,i)=>anims.push(t.animate([{transform:'none',opacity:1},{transform:'translateX(40px)',opacity:0}],{duration:D*.6,easing:EASE,delay:i*20,fill:'forwards'})));
+      anims.push(Lsk.animate([{opacity:1},{opacity:0}],{duration:D*.6,easing:EASE,fill:'forwards'}));
+      pairs.forEach(([from,to],i)=>{ const kf=flipTo(from,to); anims.push(from.animate([kf[1],kf[0]],{duration:D,easing:EASE,delay:D*.25+i*30,fill:'backwards'})); });
+    }
+  }
+  await Promise.all(anims.map(a=>a.finished.catch(()=>{})));
+  anims.forEach(a=>{ try{a.cancel()}catch{} });
+  hide.classList.add('hidden'); mode=next; movePill(); busy=false;
+}
+
+/* ---------- Station: hodiny ---------- */
+function flipDigit(el,val){ const old=el.firstElementChild; if(old.textContent===val) return; const nw=document.createElement('span'); nw.textContent=val; el.appendChild(nw);
+  old.animate([{transform:'none',opacity:1},{transform:'translateY(-100%)',opacity:0}],{duration:300,easing:EASE,fill:'forwards'});
+  nw.animate([{transform:'translateY(100%)',opacity:0},{transform:'none',opacity:1}],{duration:300,easing:EASE}).finished.then(()=>old.remove()); }
+function tick(){ const d=new Date(),h=String(d.getHours()).padStart(2,'0'),m=String(d.getMinutes()).padStart(2,'0');
+  flipDigit($('#hh'),h); flipDigit($('#mm'),m); $('#hh2').textContent=h; $('#mm2').textContent=m; $('#ambTime').textContent=h+':'+m; }
+tick(); setInterval(tick,1000);
+
+/* ---------- kruhy: dokreslenie + nábeh čísla ---------- */
+function animateRings(){ const vals=[[100],[33,71]];
+  [$('#r1'),$('#r2')].forEach((r,i)=>{ const fills=r.querySelectorAll('.fill'); fills.forEach((c,j)=>{ const C=Number(c.getAttribute('stroke-dasharray')); requestAnimationFrame(()=>c.setAttribute('stroke-dashoffset',C*(1-vals[i][j]/100))); });
+    const p=r.querySelector('.pct'), to=Number(p.dataset.to), t0=performance.now(); (function up(){ const k=Math.min(1,(performance.now()-t0)/800); p.textContent=Math.round(to*(1-Math.pow(1-k,3)))+'%'; if(k<1) requestAnimationFrame(up); })(); }); }
+animateRings();
+
+/* ---------- Station: detail usage (ťah hore/dole alebo klepnutie) ---------- */
+(()=>{ const u=$('#cUsage'), det=$('#detail'); let y0=null;
+  u.addEventListener('pointerdown',e=>{y0=e.clientY;});
+  u.addEventListener('pointerup',e=>{ if(y0===null) return; const dy=e.clientY-y0; y0=null;
+    if(dy<-30){ det.classList.add('open'); vib(8); } else if(dy>30){ det.classList.remove('open'); vib(8); } else if(!det.classList.contains('open')) { det.classList.add('open'); vib(8); } });
+  det.addEventListener('click',()=>det.classList.remove('open'));
+})();
+
+/* ---------- Station: hudba ---------- */
+const tracks=[{t:'Bars',a:'Ektor',c:'radial-gradient(60% 70% at 70% 30%,#5a3bd6,transparent 60%),linear-gradient(135deg,#1b2a4a,#0b1020)'},
+  {t:'Je mi to fuk',a:'Ektor & DJ Wich',c:'radial-gradient(60% 70% at 30% 40%,#d6533b,transparent 60%),linear-gradient(135deg,#3a1b1b,#0b1020)'},
+  {t:'2LÁK',a:'Strapo feat. Marián Čekovský',c:'radial-gradient(60% 70% at 60% 60%,#2fa35a,transparent 60%),linear-gradient(135deg,#1b3a2a,#0b1020)'}];
+let ti=0, playing=true, pos=32, coverA=true;
+$('#cover').style.setProperty('--c',tracks[0].c);
+function setTrack(i){ ti=(i+tracks.length)%tracks.length; const tr=tracks[ti];
+  const [a,b]=coverA?[$('#cover'),$('#cover2')]:[$('#cover2'),$('#cover')]; b.style.setProperty('--c',tr.c); b.style.opacity=1; a.style.opacity=0; coverA=!coverA;
+  [['#title',tr.t],['#artist',tr.a]].forEach(([s,v])=>{ const el=$(s); el.animate([{transform:'none',opacity:1},{transform:'translateY(-60%)',opacity:0}],{duration:200,easing:EASE}).finished.then(()=>{ el.textContent=v; el.animate([{transform:'translateY(60%)',opacity:0},{transform:'none',opacity:1}],{duration:250,easing:EASE}); }); });
+  pos=0; }
+$('#next').onclick=()=>{vib(10);setTrack(ti+1)}; $('#prev').onclick=()=>{vib(10);setTrack(ti-1)};
+$('#play').onclick=()=>{vib(10);playing=!playing;$('#play').textContent=playing?'⏸':'▶';};
+setInterval(()=>{ if(playing){ pos=(pos+1)%200; $('#prog').style.width=(pos/2)+'%'; } },1000);
+(()=>{ const m=$('#cMusic'); let x0=null; m.addEventListener('pointerdown',e=>{ if(e.target.closest('button')) return; x0=e.clientX; });
+  m.addEventListener('pointerup',e=>{ if(x0===null) return; const dx=e.clientX-x0; x0=null; if(dx<-40){vib(10);setTrack(ti+1);} else if(dx>40){vib(10);setTrack(ti-1);} else if(Math.abs(dx)<8){ $('#play').click(); } }); })();
+
+/* ---------- SKP: dlaždice + toast ---------- */
+let toastT=null;
+function toast(kind,text){ const t=$('#toast'); t.className='toast '+kind; t.innerHTML=(kind==='ok'?'✓ ':'⚠ ')+text; requestAnimationFrame(()=>t.classList.add('show')); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),kind==='ok'?1800:3500); }
+$$('#grid .tile').forEach(t=>{ t.onclick=()=>{ vib(12); const r=t.dataset.r; t.classList.remove('ok','err'); t.classList.add('sent');
+  setTimeout(()=>{ t.classList.remove('sent');
+    if(r==='toggle'){ const on=t.classList.toggle('active'); t.querySelector('.et').textContent=on?(t.querySelector('.nm').textContent==='X‑Ray'?'zapnutý':'skrytých 7'):(t.querySelector('.nm').textContent==='X‑Ray'?'vypnutý':'výber'); if(t.querySelector('.nm').textContent!=='X‑Ray') t.querySelector('.nm').textContent=on?'Obnoviť':'Izolovať'; toast('ok',on?'Zapnuté':'Vypnuté'); }
+    else if(r==='err'){ t.classList.add('err'); vib([40,60,40]); toast('err','Nič nie je vybrané'); setTimeout(()=>t.classList.remove('err'),3500); }
+    else { t.classList.add('ok'); toast('ok',t.querySelector('.nm').textContent+': 1 objekt'); setTimeout(()=>t.classList.remove('ok'),2000); }
+  },450); }; });
+
+/* ---------- nastavenia ---------- */
+$('#gear').onclick=()=>$('#drawer').classList.add('open'); $('#dClose').onclick=()=>$('#drawer').classList.remove('open');
+function seg(id,key,fn){ $$(`#${id} button`).forEach(b=>b.onclick=()=>{ $$(`#${id} button`).forEach(x=>x.classList.remove('on')); b.classList.add('on'); cfg[key]=b.dataset.v; fn&&fn(b.dataset.v); }); }
+seg('segT','t'); seg('segS','s',v=>html.dataset.theme=v); seg('segH','hv',v=>cfg.h=v==='1'); seg('segM','mv',v=>{cfg.m=v==='1'; html.dataset.motion=cfg.m?'reduce':'';});
+$('#dAuto').onclick=async()=>{ $('#drawer').classList.remove('open'); pref='auto'; movePill(); const to=mode==='skp'?'station':'skp'; $('#autolbl').textContent='AUTO → '+(to==='skp'?'SKP':'Station'); $('#autolbl').classList.add('show'); setTimeout(()=>$('#autolbl').classList.remove('show'),1200); await switchTo(to); };
+$('#dOffline').onclick=()=>{ $('#drawer').classList.remove('open'); document.body.classList.add('offline'); $('#banner').classList.add('show'); $('#dot').classList.add('pulse'); setTimeout(()=>{document.body.classList.remove('offline');$('#banner').classList.remove('show');$('#dot').classList.remove('pulse');},3000); };
+$('#dAmbient').onclick=()=>{ $('#drawer').classList.remove('open'); $('#ambient').classList.add('on'); }; $('#ambient').onclick=()=>$('#ambient').classList.remove('on');
+$('#dTrack').onclick=()=>{ $('#drawer').classList.remove('open'); if(mode!=='station') switchTo('station'); setTimeout(()=>setTrack(ti+1),400); };
+$('#dMinute').onclick=()=>{ $('#drawer').classList.remove('open'); if(mode!=='station') switchTo('station'); setTimeout(()=>{ const v=String((Number($('#mm').firstElementChild.textContent)+1)%60).padStart(2,'0'); flipDigit($('#mm'),v); },400); };
+document.addEventListener('dblclick',()=>{ document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{}); });
+</script>
+</body>
+</html>
