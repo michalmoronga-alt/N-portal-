@@ -13,7 +13,7 @@ require 'fileutils'
 
 module NPortal
   module E0
-    VERSION        = '0.2.0'.freeze
+    VERSION        = '0.3.0'.freeze
     # Dátový priečinok je mimo AppData: balíčkové aplikácie (napr. Claude desktop) majú AppData
     # presmerované do súkromnej kópie a ich zápisy by SketchUp nevidel. Rovnaká cesta je v service/src/config.ts.
     DATA_ROOT      = (ENV['NPORTAL_DATA_DIR'] || File.join(Dir.home, '.n-portal')).tr('\\', '/').freeze
@@ -37,11 +37,14 @@ module NPortal
       'view_front'      => :cmd_view_front,
       'view_left'       => :cmd_view_left,
       'view_previous'   => :cmd_view_previous,
-      'view_all'        => :cmd_view_all
+      'view_all'        => :cmd_view_all,
+      'isolate_toggle'         => :cmd_isolate_toggle,
+      'hidden_objects_toggle'  => :cmd_hidden_objects_toggle
     }.freeze
     HISTORY_MAX = 20
 
-    @history = [] unless defined?(@history)   # vlastná história kamery (len zmeny vyvolané panelom)
+    @history   = [] unless defined?(@history)    # vlastná história kamery (len zmeny vyvolané panelom)
+    @isolation = nil unless defined?(@isolation) # { model_guid:, ids: [persistent_id…], at: } – čo izolácia skryla
 
     @timer     = nil unless defined?(@timer)
     @status    = 'stopped' unless defined?(@status)   # running | standby | stopped
@@ -254,6 +257,74 @@ module NPortal
         record('ok', id, 'Celý model')
       end
 
+      # ---------- viditeľnosť (E3) ----------
+
+      # Izolovať / obnoviť ako prepínač. Izolácia skryje viditeľné susedné objekty v aktuálnom
+      # editačnom kontexte a zapamätá si ich; obnovenie odkryje len tie (čo bolo skryté predtým, ostane skryté).
+      def cmd_isolate_toggle(model, id)
+        return restore_isolation(model, id) if isolation_active?(model)
+
+        sel = model.selection
+        return record('error', id, 'Nič nie je vybrané – nie je čo izolovať') if sel.empty?
+
+        to_hide = model.active_entities.select do |e|
+          e.is_a?(Sketchup::Drawingelement) && e.visible? && !sel.contains?(e)
+        end
+        return record('error', id, 'Okolo výberu nie je čo skryť') if to_hide.empty?
+
+        model.start_operation('N-portal: izolovať', true)
+        to_hide.each { |e| e.hidden = true }
+        model.commit_operation
+        @isolation = { model_guid: model.guid, ids: to_hide.map(&:persistent_id), at: Time.now.to_i }
+        model.active_view.invalidate
+        write_state(force: true)
+        record('ok', id, "Izolované: #{count_text(sel.length)}, skrytých #{to_hide.length}")
+      end
+
+      def restore_isolation(model, id)
+        iso = @isolation
+        @isolation = nil
+        return record('error', id, 'Izolácia patrí inému modelu – zrušená') if iso[:model_guid] != model.guid
+
+        found = model.find_entity_by_persistent_id(iso[:ids]) || []
+        restored = 0
+        model.start_operation('N-portal: obnoviť', true)
+        found.each do |e|
+          next unless e && e.valid? && e.respond_to?(:hidden?) && e.hidden?
+          e.hidden = false
+          restored += 1
+        end
+        model.commit_operation
+        model.active_view.invalidate
+        write_state(force: true)
+        record('ok', id, "Obnovené: #{restored} z #{iso[:ids].length}")
+      end
+
+      def isolation_active?(model)
+        !@isolation.nil? && model && @isolation[:model_guid] == model.guid
+      end
+
+      # Prepnúť zobrazenie skrytých objektov (View > Hidden Objects). Nemení skrytú geometriu ani tagy.
+      def cmd_hidden_objects_toggle(model, id)
+        ro  = model.rendering_options
+        key = hidden_objects_key(ro)
+        ro[key] = !ro[key]
+        model.active_view.invalidate
+        write_state(force: true)
+        record('ok', id, ro[key] ? 'Skryté objekty: zobrazené' : 'Skryté objekty: skryté')
+      end
+
+      def hidden_objects_key(ro)
+        ro['DrawHiddenObjects'].nil? ? 'DrawHidden' : 'DrawHiddenObjects'
+      end
+
+      def hidden_objects_shown?(model)
+        ro = model.rendering_options
+        ro[hidden_objects_key(ro)] ? 1 : 0
+      rescue
+        0
+      end
+
       def push_history(cam)
         @history << {
           eye: cam.eye, target: cam.target, up: cam.up,
@@ -310,6 +381,9 @@ module NPortal
           "model.ready=#{model ? 1 : 0}",
           "model.title=#{title}",
           "selection.count=#{model ? model.selection.length : 0}",
+          "isolation.active=#{isolation_active?(model) ? 1 : 0}",
+          "isolation.count=#{isolation_active?(model) ? @isolation[:ids].length : 0}",
+          "view.hidden_objects=#{model ? hidden_objects_shown?(model) : 0}",
           "last.id=#{@last[:id]}",
           "last.status=#{@last[:status]}",
           "last.message=#{@last[:message]}",

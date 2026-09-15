@@ -135,6 +135,7 @@ button { font: inherit; color: inherit; }
 .tile .nm { font-size: 3.1vh; font-weight: 600; text-align: center; line-height: 1.15; padding: 0 .5vw; }
 .tile .et { font-size: 2.2vh; color: var(--muted); min-height: 2.2vh; }
 .tile.on { background: linear-gradient(160deg, #2f7ae5, #1d55b4); border-color: #5a9bff; box-shadow: 0 0 0 1px rgba(90, 155, 255, .35), 0 12px 30px rgba(47, 122, 229, .35); }
+.tile.active { background: linear-gradient(160deg, #1f6f6a, #134a47); border-color: #3ec6b0; } /* izolácia beží */
 .tile.idle { opacity: .6; }
 .tile.off { opacity: .4; }
 .tile.sent { background: linear-gradient(160deg, var(--amber), #a8731a); border-color: #f0b85a; }

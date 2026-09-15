@@ -16,17 +16,34 @@ interface Props {
   sendMedia: (a: 'play' | 'pause' | 'toggle' | 'next' | 'prev') => void;
 }
 
-// Dlaždice: stále pozície. Aktívna je len akcia z hotovej etapy; ostatné sú náhľad budúcich etáp.
-const TILES: { action: string; name: string; stage: string; icon: React.ReactNode; enabled: boolean }[] = [
-  { action: 'focus_selection', name: 'Zamerať výber', stage: 'E0', enabled: true, icon: <IconFocus /> },
-  { action: 'view_top', name: 'Zhora', stage: 'E2', enabled: true, icon: <IconTop /> },
-  { action: 'view_front', name: 'Spredu', stage: 'E2', enabled: true, icon: <IconBox /> },
-  { action: 'view_left', name: 'Zľava', stage: 'E2', enabled: true, icon: <IconBoxLeft /> },
-  { action: 'view_previous', name: 'Predošlý pohľad', stage: 'E2', enabled: true, icon: <IconUndo /> },
-  { action: 'view_all', name: 'Celý model', stage: 'E2', enabled: true, icon: <IconAll /> },
-  { action: 'isolate', name: 'Izolovať / obnoviť', stage: 'E3', enabled: false, icon: <IconEye /> },
-  { action: 'tags', name: 'Tagy', stage: 'E3', enabled: false, icon: <IconTag /> },
-];
+// Dlaždice: stále pozície. Názov a popis dlaždíc E3 sa mení podľa skutočného stavu v SketchUpe.
+interface Tile { action: string; name: string; sub: string; icon: React.ReactNode; enabled: boolean }
+function buildTiles(s: SketchUpState | null): Tile[] {
+  const iso = !!s?.isolationActive;
+  const hidden = !!s?.hiddenObjectsShown;
+  return [
+    { action: 'focus_selection', name: 'Zamerať výber', sub: '', enabled: true, icon: <IconFocus /> },
+    { action: 'view_top', name: 'Zhora', sub: '', enabled: true, icon: <IconTop /> },
+    { action: 'view_front', name: 'Spredu', sub: '', enabled: true, icon: <IconBox /> },
+    { action: 'view_left', name: 'Zľava', sub: '', enabled: true, icon: <IconBoxLeft /> },
+    { action: 'view_previous', name: 'Predošlý pohľad', sub: '', enabled: true, icon: <IconUndo /> },
+    { action: 'view_all', name: 'Celý model', sub: '', enabled: true, icon: <IconAll /> },
+    {
+      action: 'isolate_toggle',
+      name: iso ? 'Obnoviť' : 'Izolovať',
+      sub: iso ? `skrytých ${s!.isolationCount}` : 'výber',
+      enabled: true,
+      icon: iso ? <IconEyeOff /> : <IconEye />,
+    },
+    {
+      action: 'hidden_objects_toggle',
+      name: 'Skryté objekty',
+      sub: hidden ? 'zobrazené' : 'skryté',
+      enabled: true,
+      icon: <IconGhost />,
+    },
+  ];
+}
 
 export default function Skp({ online, sketchup, usage, media, lastAck, sendCommand, sendMedia }: Props) {
   const now = useClock();
@@ -119,18 +136,19 @@ export default function Skp({ online, sketchup, usage, media, lastAck, sendComma
 
       <div className="skp-main">
         <div className="grid">
-          {TILES.map((t) => {
+          {buildTiles(sketchup).map((t) => {
             let cls = 'tile';
             if (!t.enabled) cls += ' off';
             else if (t.action === activeAction && activeFlash) cls += ` ${activeFlash.kind}`;
             else if (t.action === activeAction && pendingId) cls += ' sent';
             else if (ready) cls += ' on';
             else cls += ' idle';
+            if (t.action === 'isolate_toggle' && sketchup?.isolationActive && !activeFlash) cls += ' active';
             return (
               <button key={t.action} className={cls} onClick={() => t.enabled && press(t.action)} disabled={!t.enabled}>
                 <span className="ic">{t.icon}</span>
                 <span className="nm">{t.name}</span>
-                <span className="et">{t.enabled ? '' : t.stage}</span>
+                <span className="et">{t.sub}</span>
               </button>
             );
           })}
@@ -164,6 +182,9 @@ function IconAll() {
 function IconEye() {
   return <svg viewBox="0 0 48 48" {...P}><path d="M4 24s7-12 20-12 20 12 20 12-7 12-20 12S4 24 4 24z" /><circle cx="24" cy="24" r="5" /></svg>;
 }
-function IconTag() {
-  return <svg viewBox="0 0 48 48" {...P}><path d="M6 8h18l16 16-12 12L6 26z" /><circle cx="14" cy="16" r="3" fill="currentColor" /></svg>;
+function IconEyeOff() {
+  return <svg viewBox="0 0 48 48" {...P}><path d="M4 24s7-12 20-12c3 0 5.6.6 8 1.6M44 24s-7 12-20 12c-3 0-5.6-.6-8-1.6" /><path d="M8 40L40 8" /><path d="M19.5 28.5a6 6 0 0 1 9-9" /></svg>;
+}
+function IconGhost() {
+  return <svg viewBox="0 0 48 48" {...P}><path d="M10 42V22a14 14 0 0 1 28 0v20l-5-4-4.5 4-4.5-4-4.5 4-4.5-4z" strokeDasharray="4 3" /><circle cx="19" cy="22" r="2" fill="currentColor" /><circle cx="29" cy="22" r="2" fill="currentColor" /></svg>;
 }

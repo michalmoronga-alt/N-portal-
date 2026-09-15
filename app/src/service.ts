@@ -13,6 +13,9 @@ export interface SketchUpState {
   heartbeatAge: number | null;
   model: string | null;
   selectionCount: number | null;
+  isolationActive: boolean;
+  isolationCount: number;
+  hiddenObjectsShown: boolean;
   last: SketchUpLast | null;
 }
 export interface UsageProvider {

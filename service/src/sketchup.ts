@@ -11,7 +11,11 @@ const HEARTBEAT_MAX_SEC = 3;
 const TTL_MS = 2000;
 
 /** Akcie, ktoré služba pošle ďalej. Prijímač má vlastný zoznam; oba musia súhlasiť. */
-export const ALLOWED_ACTIONS = new Set(['focus_selection', 'view_top', 'view_front', 'view_left', 'view_previous', 'view_all']);
+export const ALLOWED_ACTIONS = new Set([
+  'focus_selection',
+  'view_top', 'view_front', 'view_left', 'view_previous', 'view_all',
+  'isolate_toggle', 'hidden_objects_toggle',
+]);
 
 export interface SketchUpLast {
   id: string;
@@ -26,6 +30,9 @@ export interface SketchUpState {
   heartbeatAge: number | null; // s
   model: string | null;
   selectionCount: number | null;
+  isolationActive: boolean; // panel má aktívnu izoláciu v tomto modeli
+  isolationCount: number; // koľko objektov izolácia skryla
+  hiddenObjectsShown: boolean; // View > Hidden Objects
   last: SketchUpLast | null;
 }
 
@@ -34,7 +41,7 @@ export function readState(): SketchUpState {
   try {
     raw = fs.readFileSync(STATE_FILE, 'utf8');
   } catch {
-    return { available: false, receiverStatus: 'missing', heartbeatAge: null, model: null, selectionCount: null, last: null };
+    return { available: false, receiverStatus: 'missing', heartbeatAge: null, model: null, selectionCount: null, isolationActive: false, isolationCount: 0, hiddenObjectsShown: false, last: null };
   }
   const kv = new Map<string, string>();
   for (const line of raw.split(/\r?\n/)) {
@@ -53,6 +60,9 @@ export function readState(): SketchUpState {
     heartbeatAge: age,
     model: kv.get('model.title') ?? null,
     selectionCount: kv.has('selection.count') ? Number(kv.get('selection.count')) : null,
+    isolationActive: kv.get('isolation.active') === '1',
+    isolationCount: Number(kv.get('isolation.count') ?? 0) || 0,
+    hiddenObjectsShown: kv.get('view.hidden_objects') === '1',
     last: lastId
       ? { id: lastId, status: kv.get('last.status') ?? '', message: kv.get('last.message') ?? '', at: Number(kv.get('last.at') ?? 0) }
       : null,
