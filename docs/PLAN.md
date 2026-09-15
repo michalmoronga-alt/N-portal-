@@ -1,6 +1,6 @@
 # Plán po malých etapách
 
-Stav k 15. 9. 2026: všetky implementačné etapy čakajú. Rozsah každej potvrdiť pred začatím; neimplementovať celý backlog naraz.
+Stav k 15. 9. 2026: smer zmenený na PWA + lokálna služba (pozri [SMER.md](SMER.md)). E0 je postavené a otestované agentom na PC; čaká na test na reálnom mobile. Rozsah každej ďalšej etapy potvrdiť pred začatím; neimplementovať celý backlog naraz.
 
 Doplnené nápady na adaptívne rozhranie podľa aplikácie a výberu. Sú to budúce experimenty, nie rozšírenie V1. Pred implementáciou najprv research hotových riešení a malé diagnostické testy podľa [POSTUP.md](POSTUP.md).
 
@@ -8,8 +8,8 @@ Doplnené nápady na adaptívne rozhranie podľa aplikácie a výberu. Sú to bu
 
 | Etapa | Malý výsledok | Podmienka pokračovania |
 |---|---|---|
-| **E0 — dôkaz ovládania** | Jedno Rainmeter tlačidlo „Zamerať výber“, minimálny Ruby prijímač, potvrdenie výsledku. Pôvodný Station nemeníme. | Správny model, rozumná odozva, bezpečné opakovanie a chyba/odpojenie; otestovaný fokus aj kurzor. |
-| **E1 — spoločný základ** | Jeden widget, ručné Station/SKP, kompaktný pás. Existujúce usage dáta a hudbu integrovať po overení ich zdrojov; pridať len overené príkazy. | Čitateľnosť a dotyk na skutočnom mobile; stabilné prepínanie; Station funguje bez SketchUpu. |
+| **E0 — dôkaz cesty** | PWA s jedným tlačidlom „Zamerať výber“ a ukazovateľom spojenia, lokálna služba na PC, Ruby prijímač. Pôvodné skiny a Engine nemeníme. **Postavené 15. 9. 2026, otestované na PC** (pozri POSTUP.md). | Na reálnom mobile: správny model, odozva, ruka na myši pokračuje bez klikania; chyba/odpojenie zrozumiteľné. |
+| **E1 — Station** | Čas, dátum, usage (Claude weekly + 5h, Codex weekly) zo súboru existujúceho skinu, hudba cez Windows Media Session (názov, play/pause, ďalšia/predošlá). Ručný prepínač Station/SKP. | Čitateľnosť a dotyk na skutočnom mobile; stabilné prepínanie; Station funguje bez SketchUpu; displej sa neuspáva. |
 | **E2 — navigácia** | Po jednom: zhora, spredu, zľava so zameraním výberu; predošlý pohľad a celý model. | Jednoznačné osi/projekcia, zachovaný výber, overenie na reálnej zákazke. |
 | **E3 — viditeľnosť** | Po jednom: izolovať/obnoviť, obľúbené tagy, zobrazenie skrytých objektov. | Správne obnovenie pôvodného stavu a synchronizácia aj pri zmene priamo v SketchUpe. |
 

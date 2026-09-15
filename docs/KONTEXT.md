@@ -6,7 +6,7 @@ Zápis úvodnej diskusie, 15. 9. 2026. Projekt zatiaľ slúži na dokumentáciu,
 
 Používateľ má dva hlavné monitory a starší mobil naležato ako tretí dotykový monitor cez spacedesk. Mobil je pri klávesnici, takže naň dosiahne rýchlo. Na ňom už používa hodiny, NOXUN AI Usage a hudobný widget JaxCore. Pripojenie a dotyk prakticky fungujú.
 
-Prvé problémy: príliš malý widget pri vysokom rozlíšení a Windows panel úloh na mobile. Veľkosť zobrazenia sa už riešila; skrytie lišty iba na mobile zostáva otvorenou úlohou. Presný model telefónu, aktuálne rozlíšenie, mierku a verzie aplikácií zapísať pred E0. Nespoliehať sa na staršie odhady.
+Prvé problémy: príliš malý widget pri vysokom rozlíšení a Windows panel úloh na mobile. Veľkosť zobrazenia sa už riešila; skrytie lišty iba na mobile zostáva otvorenou úlohou. Model telefónu (IIIF150 Air1), rozlíšenie (1100 × 530) a verzie aplikácií sú zapísané v [POSTUP.md](POSTUP.md), tabuľka Prostredie. Mierka spacedesku ešte nie je zapísaná.
 
 Touch Portal bol odskúšaný; bezplatná verzia používateľovi nestačila. Ďalší generický makropanel nie je cieľom.
 
@@ -27,21 +27,23 @@ Vysoké rozlíšenie je výhoda pre ostrosť, nie dôvod na malé tlačidlá. V�
 
 Pôvodný nápad: presunúť SketchUp `HtmlDialog` na mobil a vedľa neho ponechať Rainmeter/JaxCore.
 
-Nový preferovaný smer: celé UI v jednom Rainmeter skine. JaxCore je možné neskoršie začlenenie, nie povinná závislosť celého projektu. Widget má mať oddelené vnútorné časti pre usage, čas, hudbu, režimy a SKP; jedna obrazovka neznamená jeden monolitický súbor.
+Druhý nápad (dopoludnia 15. 9.): celé UI v jednom Rainmeter skine na spacedesk monitore. Test D0 ukázal, že dotyk presúva kurzor a fokus, preto bol tento smer opustený.
 
-Navrhovaná cesta povelu:
+**Platný smer (15. 9. 2026 večer, [SMER.md](SMER.md)):** PWA na mobile ako samostatnom zariadení + lokálna služba na PC. Rainmeter, JaxCore a spacedesk nie sú pre panel potrebné; usage dáta sa ďalej čítajú zo súboru existujúceho skinu.
+
+Cesta povelu:
 
 ```text
-Dotyk na mobile → spacedesk → Rainmeter
-                              ↕ lokálne prepojenie na PC
-                         Ruby prijímač v SketchUpe
-                              ↕
-                   API SketchUpu / existujúce akcie Engine
+Dotyk v PWA na mobile → Wi‑Fi/USB → Node služba na PC (WebSocket, token)
+                                         ↕ súbory v %USERPROFILE%\.n-portal\e0
+                                    Ruby prijímač v SketchUpe
+                                         ↕
+                              API SketchUpu / existujúce akcie Engine
 ```
 
 Ruby prijímač by vykonával konkrétne povolené príkazy a vracal výsledok/stav. Skrytý HTML panel sa neplánuje: widget nemá klikať na neviditeľné tlačidlá ani simulovať klikanie na súradnice obrazovky.
 
-**Toto prepojenie ešte nebolo vytvorené ani odskúšané.** Lokálna fronta povelov a stavový súbor sú kandidát pre E0, nie uzavretá voľba protokolu. Plynulé gestá môžu neskôr potrebovať iný spôsob prenosu. HTML variant zostáva záložná cesta, ak praktický test jednotného widgetu nevyjde.
+Prepojenie je pre E0 vytvorené a otestované na PC (POSTUP.md). Súborová fronta povelov a stavový súbor stačia pre tlačidlá; plynulé gestá budú neskôr potrebovať priame TCP/WebSocket spojenie z Ruby (rovnako ako to robí VBO SkAgent).
 
 Základné ovládanie výberu a kamery má zostať nezávislé od Engine. Materiály, ABS a ďalšie Engine funkcie majú neskôr volať jeho existujúcu logiku, nie jej druhú implementáciu. Možnosti opätovného použitia usage a hudobného widgetu treba pred zásahom načítať z ich skutočného kódu.
 
@@ -49,7 +51,7 @@ Základné ovládanie výberu a kamery má zostať nezávislé od Engine. Materi
 
 | Téma | Pravidlo / čo overiť |
 |---|---|
-| Fokus a kurzor | Po dotyku musí byť možné pokračovať v modeli. Návrat klávesnicového fokusu a poloha kurzora sú dva samostatné testy; správanie v tejto zostave zatiaľ nepoznáme. |
+| Fokus a kurzor | Po dotyku musí byť možné pokračovať v modeli. **D0 (15. 9. 2026) ukázal, že dotyk na Rainmeter skin presunie kurzor na mobil a klávesnicový fokus na okno skinu.** E0 preto musí kurzor aj fokus aktívne vrátiť do SketchUpu; návrat fokusu a návrat kurzora zostávajú dva samostatné testy. |
 | Cieľ povelu | E0 ovláda jednu jednoznačne pripojenú reláciu/model. Pri nejasnosti alebo odpojení ovládanie zneaktívniť, nie hádať cieľ. |
 | Spätný stav | Rozlišovať odoslaný povel, úspech, chybu a nedostupnosť. Zmeny urobené priamo v SketchUpe nesmú zostať na widgete neaktuálne. |
 | Staré povely | Po opätovnom spojení nevykonať oneskorené požiadavky; povely identifikovať, časovo obmedziť a chrániť pred neúmyselným opakovaním. |
