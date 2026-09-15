@@ -13,8 +13,8 @@ const TTL_MS = 2000;
 /** Akcie, ktoré služba pošle ďalej. Prijímač má vlastný zoznam; oba musia súhlasiť. */
 export const ALLOWED_ACTIONS = new Set([
   'focus_selection',
-  'view_top', 'view_front', 'view_left', 'view_previous', 'view_all',
-  'isolate_toggle', 'hidden_objects_toggle',
+  'view_top', 'view_front', 'view_left', 'view_right', 'view_iso', 'view_previous', 'view_all',
+  'isolate_toggle', 'hidden_objects_toggle', 'xray_toggle',
 ]);
 
 export interface SketchUpLast {
@@ -34,6 +34,7 @@ export interface SketchUpInstance {
   isolationActive: boolean;
   isolationCount: number;
   hiddenObjectsShown: boolean;
+  xrayOn: boolean;
   last: SketchUpLast | null;
 }
 
@@ -80,6 +81,7 @@ function parseState(file: string, pid: number): SketchUpInstance | null {
     isolationActive: kv.get('isolation.active') === '1',
     isolationCount: Number(kv.get('isolation.count') ?? 0) || 0,
     hiddenObjectsShown: kv.get('view.hidden_objects') === '1',
+    xrayOn: kv.get('view.xray') === '1',
     last: lastId
       ? { id: lastId, status: kv.get('last.status') ?? '', message: kv.get('last.message') ?? '', at: Number(kv.get('last.at') ?? 0) }
       : null,
@@ -105,7 +107,7 @@ export function readInstances(): SketchUpInstance[] {
 
 const UNAVAILABLE: Omit<SketchUpState, 'targetReason' | 'instances'> = {
   pid: null, available: false, receiverStatus: 'missing', heartbeatAge: null, model: null, selectionCount: null,
-  isolationActive: false, isolationCount: 0, hiddenObjectsShown: false, last: null,
+  isolationActive: false, isolationCount: 0, hiddenObjectsShown: false, xrayOn: false, last: null,
 };
 
 /**

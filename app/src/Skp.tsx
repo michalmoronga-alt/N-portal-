@@ -3,6 +3,7 @@ import Ring from './Ring';
 import type { Ack, MediaState, SketchUpState, UsageState } from './service';
 import { useClock, formatDateShort } from './time';
 import { ledTap, ledError } from './ledPulse';
+import SwipeTile, { type SwipeDir } from './SwipeTile';
 
 type Flash = { kind: 'ok' | 'error' | 'warn'; text: string; until: number } | null;
 const REPLY_TIMEOUT_MS = 3000;
@@ -18,15 +19,18 @@ interface Props {
 }
 
 // Dlaždice: stále pozície. Názov a popis dlaždíc E3 sa mení podľa skutočného stavu v SketchUpe.
-interface Tile { action: string; name: string; sub: string; icon: React.ReactNode; enabled: boolean }
+interface Tile { action: string; name: string; sub: string; icon: React.ReactNode; enabled: boolean; swipe?: boolean }
+const SWIPE_ACTION: Record<SwipeDir, string> = { up: 'view_top', down: 'view_front', left: 'view_left', right: 'view_right' };
+
 function buildTiles(s: SketchUpState | null): Tile[] {
   const iso = !!s?.isolationActive;
   const hidden = !!s?.hiddenObjectsShown;
+  const xray = !!s?.xrayOn;
   return [
     { action: 'focus_selection', name: 'Zamerať výber', sub: '', enabled: true, icon: <IconFocus /> },
-    { action: 'view_top', name: 'Zhora', sub: '', enabled: true, icon: <IconTop /> },
-    { action: 'view_front', name: 'Spredu', sub: '', enabled: true, icon: <IconBox /> },
-    { action: 'view_left', name: 'Zľava', sub: '', enabled: true, icon: <IconBoxLeft /> },
+    { action: 'view', name: 'Pohľad', sub: 'potiahni', enabled: true, swipe: true, icon: <IconView /> },
+    { action: 'view_iso', name: 'ISO', sub: '', enabled: true, icon: <IconIso /> },
+    { action: 'xray_toggle', name: 'X‑Ray', sub: xray ? 'zapnutý' : 'vypnutý', enabled: true, icon: <IconXray /> },
     { action: 'view_previous', name: 'Predošlý pohľad', sub: '', enabled: true, icon: <IconUndo /> },
     { action: 'view_all', name: 'Celý model', sub: '', enabled: true, icon: <IconAll /> },
     {
@@ -142,17 +146,31 @@ export default function Skp({ online, sketchup, usage, media, lastAck, sendComma
         <div className="grid">
           {buildTiles(sketchup).map((t) => {
             let cls = 'tile';
+            const mine = t.swipe ? Object.values(SWIPE_ACTION).includes(activeAction ?? '') : t.action === activeAction;
             if (!t.enabled) cls += ' off';
-            else if (t.action === activeAction && activeFlash) cls += ` ${activeFlash.kind}`;
-            else if (t.action === activeAction && pendingId) cls += ' sent';
+            else if (mine && activeFlash) cls += ` ${activeFlash.kind}`;
+            else if (mine && pendingId) cls += ' sent';
             else if (ready) cls += ' on';
             else cls += ' idle';
             if (t.action === 'isolate_toggle' && sketchup?.isolationActive && !activeFlash) cls += ' active';
-            return (
-              <button key={t.action} className={cls} onClick={() => t.enabled && press(t.action)} disabled={!t.enabled}>
+            if (t.action === 'xray_toggle' && sketchup?.xrayOn && !activeFlash) cls += ' active';
+            const body = (
+              <>
                 <span className="ic">{t.icon}</span>
                 <span className="nm">{t.name}</span>
                 <span className="et">{t.sub}</span>
+              </>
+            );
+            if (t.swipe) {
+              return (
+                <SwipeTile key={t.action} className={cls} disabled={!t.enabled} onSwipe={(d) => press(SWIPE_ACTION[d])}>
+                  {body}
+                </SwipeTile>
+              );
+            }
+            return (
+              <button key={t.action} className={cls} onClick={() => t.enabled && press(t.action)} disabled={!t.enabled}>
+                {body}
               </button>
             );
           })}
@@ -168,14 +186,14 @@ const P = { fill: 'none', stroke: 'currentColor', strokeWidth: 2.2, strokeLineca
 function IconFocus() {
   return <svg viewBox="0 0 48 48" {...P}><circle cx="24" cy="24" r="13" /><circle cx="24" cy="24" r="3" fill="currentColor" /><path d="M24 4v8M24 36v8M4 24h8M36 24h8" /></svg>;
 }
-function IconTop() {
-  return <svg viewBox="0 0 48 48" {...P}><rect x="10" y="10" width="28" height="28" rx="3" /><path d="M24 4v6M18 7l6-3 6 3" /></svg>;
+function IconView() {
+  return <svg viewBox="0 0 48 48" {...P}><path d="M14 20l10-6 10 6v10l-10 6-10-6z" /><path d="M14 20l10 6 10-6M24 26v10" /><path d="M24 2v6M2 24h6M46 24h-6M24 46v-6" /><path d="M21 5l3-3 3 3M5 21l-3 3 3 3M43 21l3 3-3 3M21 43l3 3 3-3" /></svg>;
 }
-function IconBox() {
-  return <svg viewBox="0 0 48 48" {...P}><path d="M8 16l16-8 16 8v16l-16 8-16-8z" /><path d="M8 16l16 8 16-8M24 24v16" /></svg>;
+function IconIso() {
+  return <svg viewBox="0 0 48 48" {...P}><path d="M8 16l16-8 16 8v16l-16 8-16-8z" /><path d="M8 16l16 8 16-8M24 24v16" /><path d="M24 24l8-4" strokeDasharray="2 3" /></svg>;
 }
-function IconBoxLeft() {
-  return <svg viewBox="0 0 48 48" {...P}><path d="M10 16l16-8 16 8v16l-16 8-16-8z" /><path d="M10 16l16 8 16-8M26 24v16" /><path d="M2 24h6M5 21l-3 3 3 3" /></svg>;
+function IconXray() {
+  return <svg viewBox="0 0 48 48" {...P}><path d="M8 16l16-8 16 8v16l-16 8-16-8z" strokeDasharray="3 3" /><path d="M8 16l16 8 16-8M24 24v16" strokeDasharray="3 3" /><path d="M24 8v16M8 32l16-8 16 8" strokeDasharray="3 3" /></svg>;
 }
 function IconUndo() {
   return <svg viewBox="0 0 48 48" {...P}><path d="M14 20a12 12 0 1 1 3 10" /><path d="M8 18l6 2 2-6" /></svg>;

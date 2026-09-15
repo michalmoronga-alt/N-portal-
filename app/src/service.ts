@@ -16,6 +16,7 @@ export interface SketchUpState {
   isolationActive: boolean;
   isolationCount: number;
   hiddenObjectsShown: boolean;
+  xrayOn: boolean;
   last: SketchUpLast | null;
   pid: number | null;
   targetReason: 'foreground' | 'single' | 'none' | 'ambiguous';

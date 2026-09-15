@@ -161,6 +161,19 @@ button { font: inherit; color: inherit; }
 .tile.warn { background: linear-gradient(160deg, var(--amber), #a8731a); border-color: #f0b85a; }
 .tile:not(:disabled):active { transform: scale(.97); }
 
+/* potiahnuteľná dlaždica „Pohľad“ */
+.tile.swipe { position: relative; touch-action: none; overflow: hidden; }
+.tile.swipe .arrows i { position: absolute; font-style: normal; font-size: 2.6vh; color: rgba(255, 255, 255, .35); display: flex; flex-direction: column; align-items: center; line-height: 1; transition: color .15s, transform .15s; }
+.tile.swipe .arrows b { font-size: 1.6vh; font-weight: 500; opacity: 0; transition: opacity .15s; }
+.tile.swipe .a-up { top: 1vh; left: 50%; transform: translateX(-50%); }
+.tile.swipe .a-down { bottom: 1vh; left: 50%; transform: translateX(-50%); flex-direction: column-reverse; }
+.tile.swipe .a-left { left: 1vw; top: 50%; transform: translateY(-50%); }
+.tile.swipe .a-right { right: 1vw; top: 50%; transform: translateY(-50%); }
+.tile.swipe.hint .arrows i, .tile.swipe[class*='live-'] .arrows i { color: rgba(255, 255, 255, .7); }
+.tile.swipe.hint .arrows b { opacity: 1; }
+.tile.swipe.live-up .a-up, .tile.swipe.live-down .a-down, .tile.swipe.live-left .a-left, .tile.swipe.live-right .a-right { color: #fff; font-size: 3.6vh; }
+.tile.swipe.live-up .a-up b, .tile.swipe.live-down .a-down b, .tile.swipe.live-left .a-left b, .tile.swipe.live-right .a-right b { opacity: 1; }
+
 .skp-status { font-size: 2.6vh; color: var(--muted); text-align: center; min-height: 3vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .skp-status.ok { color: #7fd69c; }
 .skp-status.error { color: #ff8a89; }

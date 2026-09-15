@@ -13,7 +13,7 @@ require 'fileutils'
 
 module NPortal
   module E0
-    VERSION        = '0.4.0'.freeze
+    VERSION        = '0.5.0'.freeze
     # Dátový priečinok je mimo AppData: balíčkové aplikácie (napr. Claude desktop) majú AppData
     # presmerované do súkromnej kópie a ich zápisy by SketchUp nevidel. Rovnaká cesta je v service/src/config.ts.
     DATA_ROOT      = (ENV['NPORTAL_DATA_DIR'] || File.join(Dir.home, '.n-portal')).tr('\\', '/').freeze
@@ -35,8 +35,11 @@ module NPortal
       'view_top'        => :cmd_view_top,
       'view_front'      => :cmd_view_front,
       'view_left'       => :cmd_view_left,
+      'view_right'      => :cmd_view_right,
+      'view_iso'        => :cmd_view_iso,
       'view_previous'   => :cmd_view_previous,
       'view_all'        => :cmd_view_all,
+      'xray_toggle'     => :cmd_xray_toggle,
       'isolate_toggle'         => :cmd_isolate_toggle,
       'hidden_objects_toggle'  => :cmd_hidden_objects_toggle
     }.freeze
@@ -196,6 +199,30 @@ module NPortal
 
       def cmd_view_left(model, id)
         set_view(model, id, 'Zľava', Geom::Vector3d.new(-1, 0, 0), Geom::Vector3d.new(0, 0, 1))
+      end
+
+      def cmd_view_right(model, id)
+        set_view(model, id, 'Sprava', Geom::Vector3d.new(1, 0, 0), Geom::Vector3d.new(0, 0, 1))
+      end
+
+      # ISO ako v SketchUpe: kamera spredu-sprava-zhora.
+      def cmd_view_iso(model, id)
+        set_view(model, id, 'ISO', Geom::Vector3d.new(1, -1, 1).normalize, Geom::Vector3d.new(0, 0, 1))
+      end
+
+      # X-Ray: prepnúť priehľadnosť modelu (View > Face Style > X-ray). Nemení model.
+      def cmd_xray_toggle(model, id)
+        ro = model.rendering_options
+        ro['ModelTransparency'] = !ro['ModelTransparency']
+        model.active_view.invalidate
+        write_state(force: true)
+        record('ok', id, ro['ModelTransparency'] ? 'X‑Ray: zapnutý' : 'X‑Ray: vypnutý')
+      end
+
+      def xray_on?(model)
+        model.rendering_options['ModelTransparency'] ? 1 : 0
+      rescue
+        0
       end
 
       def set_view(model, id, name, eye_dir, up)
@@ -372,6 +399,7 @@ module NPortal
           "isolation.active=#{isolation_active?(model) ? 1 : 0}",
           "isolation.count=#{isolation_active?(model) ? @isolation[:ids].length : 0}",
           "view.hidden_objects=#{model ? hidden_objects_shown?(model) : 0}",
+          "view.xray=#{model ? xray_on?(model) : 0}",
           "last.id=#{@last[:id]}",
           "last.status=#{@last[:status]}",
           "last.message=#{@last[:message]}",

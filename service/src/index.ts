@@ -13,7 +13,7 @@ import { readUsage, USAGE_FILE, type UsageState } from './usage.js';
 import { MediaBridge, MEDIA_ACTIONS } from './media.js';
 import { ForegroundBridge } from './foreground.js';
 
-const VERSION = '0.4.0';
+const VERSION = '0.5.0';
 const SKETCHUP_POLL_MS = 250;
 const USAGE_POLL_MS = 5000;
 const HEARTBEAT_PUSH_MS = 2000;
