@@ -7,7 +7,6 @@ export interface SketchUpLast {
   message: string;
   at: number;
 }
-
 export interface SketchUpState {
   available: boolean;
   receiverStatus: string;
@@ -16,12 +15,40 @@ export interface SketchUpState {
   selectionCount: number | null;
   last: SketchUpLast | null;
 }
+export interface UsageProvider {
+  status: string | null;
+  weeklyUsed: number | null;
+  weeklyResetAt: number | null;
+  sessionUsed: number | null;
+  sessionResetAt: number | null;
+}
+export interface UsageState {
+  available: boolean;
+  stale: boolean;
+  ageSec: number | null;
+  mode: string | null;
+  claude: UsageProvider;
+  codex: UsageProvider;
+}
+export interface MediaState {
+  available: boolean;
+  workerOk: boolean;
+  app: string | null;
+  status: string | null;
+  title: string | null;
+  artist: string | null;
+  album: string | null;
+  thumb: string | null;
+}
 
 type ServerMsg =
-  | { type: 'state'; ts: number; sketchup: SketchUpState }
+  | { type: 'sketchup'; ts: number; data: SketchUpState }
+  | { type: 'usage'; ts: number; data: UsageState }
+  | { type: 'media'; ts: number; data: MediaState }
   | { type: 'ack'; clientId?: string; ok: boolean; id?: string; error?: string }
   | { type: 'pong'; ts: number };
 
+export type Ack = Extract<ServerMsg, { type: 'ack' }>;
 export type Connection = 'connecting' | 'open' | 'closed' | 'unauthorized';
 
 const TOKEN_KEY = 'nportal.token';
@@ -34,7 +61,6 @@ export function resolveToken(): string | null {
     } catch {
       /* súkromné okno a pod. */
     }
-    // token z adresy odstrániť, aby sa neukazoval v lište
     history.replaceState(null, '', location.pathname);
     return fromUrl;
   }
@@ -48,7 +74,9 @@ export function resolveToken(): string | null {
 export function useService() {
   const [connection, setConnection] = useState<Connection>('connecting');
   const [sketchup, setSketchup] = useState<SketchUpState | null>(null);
-  const [lastAck, setLastAck] = useState<Extract<ServerMsg, { type: 'ack' }> | null>(null);
+  const [usage, setUsage] = useState<UsageState | null>(null);
+  const [media, setMedia] = useState<MediaState | null>(null);
+  const [lastAck, setLastAck] = useState<Ack | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const tokenRef = useRef<string | null>(null);
   const retryRef = useRef(0);
@@ -74,30 +102,25 @@ export function useService() {
         setConnection('open');
       };
       ws.onmessage = (ev) => {
-        let msg: ServerMsg;
+        let m: ServerMsg;
         try {
-          msg = JSON.parse(ev.data);
+          m = JSON.parse(ev.data);
         } catch {
           return;
         }
-        if (msg.type === 'state') setSketchup(msg.sketchup);
-        else if (msg.type === 'ack') setLastAck(msg);
+        if (m.type === 'sketchup') setSketchup(m.data);
+        else if (m.type === 'usage') setUsage(m.data);
+        else if (m.type === 'media') setMedia(m.data);
+        else if (m.type === 'ack') setLastAck(m);
       };
-      ws.onclose = (ev) => {
+      ws.onclose = () => {
         wsRef.current = null;
         setSketchup(null);
         if (closed) return;
-        // 401 sa prejaví ako okamžité zatvorenie pred otvorením
-        if (ev.code === 1006 && retryRef.current === 0 && connection !== 'open') {
-          /* pokračuj v pokusoch – rozlíšenie 401 vs. výpadok nie je v prehliadači spoľahlivé */
-        }
         setConnection('closed');
         const delay = Math.min(1000 * 2 ** retryRef.current, 8000);
         retryRef.current += 1;
         timer = window.setTimeout(connect, delay);
-      };
-      ws.onerror = () => {
-        /* onclose nasleduje */
       };
     };
 
@@ -110,14 +133,12 @@ export function useService() {
       }
     };
     document.addEventListener('visibilitychange', onVisible);
-
     return () => {
       closed = true;
       window.clearTimeout(timer);
       document.removeEventListener('visibilitychange', onVisible);
       wsRef.current?.close();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const sendCommand = useCallback((action: string): string | null => {
@@ -128,5 +149,11 @@ export function useService() {
     return id;
   }, []);
 
-  return { connection, sketchup, lastAck, sendCommand, hasToken: !!tokenRef.current };
+  const sendMedia = useCallback((action: 'play' | 'pause' | 'toggle' | 'next' | 'prev') => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: 'media', action }));
+  }, []);
+
+  return { connection, sketchup, usage, media, lastAck, sendCommand, sendMedia, hasToken: !!tokenRef.current };
 }

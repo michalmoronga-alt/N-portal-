@@ -1,6 +1,6 @@
 // N-portal – lokálna služba na PC.
 // HTTP: servuje zostavenú PWA z ../app/dist a /api/health.
-// WebSocket /ws?t=<token>: posiela stav (SketchUp) a prijíma povely z PWA.
+// WebSocket /ws?t=<token>: posiela stav po témach (sketchup, usage, media) a prijíma povely z PWA.
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -9,9 +9,12 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
 import { loadConfig, SERVICE_DIR } from './config.js';
 import { readState, sendCommand, ALLOWED_ACTIONS, type SketchUpState } from './sketchup.js';
+import { readUsage, USAGE_FILE, type UsageState } from './usage.js';
+import { MediaBridge, MEDIA_ACTIONS } from './media.js';
 
-const VERSION = '0.1.0';
-const STATE_POLL_MS = 250;
+const VERSION = '0.2.0';
+const SKETCHUP_POLL_MS = 250;
+const USAGE_POLL_MS = 5000;
 const HEARTBEAT_PUSH_MS = 2000;
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -34,6 +37,19 @@ function log(msg: string) {
   console.log(`${new Date().toLocaleTimeString('sk-SK')} ${msg}`);
 }
 
+// ---------- stav po témach ----------
+
+let sketchup: SketchUpState = readState();
+let usage: UsageState = readUsage();
+const media = new MediaBridge(log);
+
+const wss = new WebSocketServer({ noServer: true });
+
+function broadcast(payload: string) {
+  for (const c of wss.clients) if (c.readyState === WebSocket.OPEN) c.send(payload);
+}
+const msg = (type: string, data: unknown) => JSON.stringify({ type, ts: Date.now(), data });
+
 // ---------- HTTP ----------
 
 const server = http.createServer((req, res) => {
@@ -41,7 +57,7 @@ const server = http.createServer((req, res) => {
 
   if (url.pathname === '/api/health') {
     res.writeHead(200, { 'Content-Type': MIME['.json'], 'Cache-Control': 'no-store' });
-    res.end(JSON.stringify({ ok: true, version: VERSION, time: Date.now(), sketchup: readState() }));
+    res.end(JSON.stringify({ ok: true, version: VERSION, time: Date.now(), sketchup, usage: { ...usage }, media: { ...media.state, thumb: media.state.thumb ? '(obrázok)' : null } }));
     return;
   }
 
@@ -65,8 +81,6 @@ const server = http.createServer((req, res) => {
 
 // ---------- WebSocket ----------
 
-const wss = new WebSocketServer({ noServer: true });
-
 server.on('upgrade', (req, socket, head) => {
   const url = new URL(req.url ?? '/', 'http://localhost');
   if (url.pathname !== '/ws' || url.searchParams.get('t') !== cfg.token) {
@@ -80,42 +94,46 @@ server.on('upgrade', (req, socket, head) => {
 
 type ClientMsg =
   | { type: 'command'; action: string; id?: string }
+  | { type: 'media'; action: string }
   | { type: 'ping' };
-
-function stateMessage(st: SketchUpState) {
-  return JSON.stringify({ type: 'state', ts: Date.now(), sketchup: st });
-}
 
 wss.on('connection', (ws, req) => {
   log(`PWA pripojená z ${req.socket.remoteAddress}`);
-  ws.send(stateMessage(lastState));
+  ws.send(msg('sketchup', sketchup));
+  ws.send(msg('usage', usage));
+  ws.send(msg('media', media.state));
 
   ws.on('message', (data) => {
-    let msg: ClientMsg;
+    let m: ClientMsg;
     try {
-      msg = JSON.parse(data.toString());
+      m = JSON.parse(data.toString());
     } catch {
       return;
     }
-    if (msg.type === 'ping') {
+    if (m.type === 'ping') {
       ws.send(JSON.stringify({ type: 'pong', ts: Date.now() }));
       return;
     }
-    if (msg.type === 'command') {
-      if (!ALLOWED_ACTIONS.has(msg.action)) {
-        ws.send(JSON.stringify({ type: 'ack', clientId: msg.id, ok: false, error: `Nepovolená akcia: ${msg.action}` }));
+    if (m.type === 'media') {
+      const ok = MEDIA_ACTIONS.has(m.action) && media.send(m.action);
+      if (!ok) log(`media povel odmietnutý: ${m.action}`);
+      return;
+    }
+    if (m.type === 'command') {
+      if (!ALLOWED_ACTIONS.has(m.action)) {
+        ws.send(JSON.stringify({ type: 'ack', clientId: m.id, ok: false, error: `Nepovolená akcia: ${m.action}` }));
         return;
       }
-      if (!lastState.available) {
-        ws.send(JSON.stringify({ type: 'ack', clientId: msg.id, ok: false, error: 'SketchUp je nedostupný, povel sa neposiela.' }));
+      if (!sketchup.available) {
+        ws.send(JSON.stringify({ type: 'ack', clientId: m.id, ok: false, error: 'SketchUp je nedostupný, povel sa neposiela.' }));
         return;
       }
       try {
-        const { id } = sendCommand(msg.action, msg.id);
-        log(`povel ${msg.action} → ${id}`);
-        ws.send(JSON.stringify({ type: 'ack', clientId: msg.id, ok: true, id }));
+        const { id } = sendCommand(m.action, m.id);
+        log(`povel ${m.action} → ${id}`);
+        ws.send(JSON.stringify({ type: 'ack', clientId: m.id, ok: true, id }));
       } catch (e) {
-        ws.send(JSON.stringify({ type: 'ack', clientId: msg.id, ok: false, error: (e as Error).message }));
+        ws.send(JSON.stringify({ type: 'ack', clientId: m.id, ok: false, error: (e as Error).message }));
       }
     }
   });
@@ -123,25 +141,36 @@ wss.on('connection', (ws, req) => {
   ws.on('close', () => log('PWA odpojená'));
 });
 
-// ---------- sledovanie stavu SketchUpu ----------
+// ---------- sledovanie zdrojov ----------
 
-let lastState: SketchUpState = readState();
-let lastSerialized = JSON.stringify(lastState);
-let lastPush = 0;
-
+let lastSketchup = JSON.stringify(sketchup);
+let lastSketchupPush = 0;
 setInterval(() => {
   const st = readState();
   const ser = JSON.stringify(st);
   const now = Date.now();
-  if (ser !== lastSerialized || now - lastPush >= HEARTBEAT_PUSH_MS) {
-    if (st.available !== lastState.available) log(`SketchUp ${st.available ? 'dostupný' : 'nedostupný'} (${st.receiverStatus})`);
-    lastState = st;
-    lastSerialized = ser;
-    lastPush = now;
-    const payload = stateMessage(st);
-    for (const c of wss.clients) if (c.readyState === WebSocket.OPEN) c.send(payload);
+  if (ser !== lastSketchup || now - lastSketchupPush >= HEARTBEAT_PUSH_MS) {
+    if (st.available !== sketchup.available) log(`SketchUp ${st.available ? 'dostupný' : 'nedostupný'} (${st.receiverStatus})`);
+    sketchup = st;
+    lastSketchup = ser;
+    lastSketchupPush = now;
+    broadcast(msg('sketchup', st));
   }
-}, STATE_POLL_MS);
+}, SKETCHUP_POLL_MS);
+
+let lastUsage = JSON.stringify(usage);
+setInterval(() => {
+  const u = readUsage();
+  const ser = JSON.stringify(u);
+  if (ser !== lastUsage) {
+    usage = u;
+    lastUsage = ser;
+    broadcast(msg('usage', u));
+  }
+}, USAGE_POLL_MS);
+
+media.onChange((s) => broadcast(msg('media', s)));
+media.start();
 
 // ---------- štart ----------
 
@@ -159,7 +188,13 @@ server.listen(cfg.port, '0.0.0.0', () => {
   console.log('');
   console.log(`N-portal služba v${VERSION}  (konfigurácia: ${SERVICE_DIR})`);
   console.log(`PWA:      ${fs.existsSync(APP_DIST) ? APP_DIST : 'NIE JE ZOSTAVENÁ – npm run build v app/'}`);
+  console.log(`Usage:    ${fs.existsSync(USAGE_FILE) ? USAGE_FILE : 'súbor usage sa nenašiel – ' + USAGE_FILE}`);
   for (const ip of lanAddresses()) console.log(`Mobil:    http://${ip}:${cfg.port}/?t=${cfg.token}`);
   console.log(`Lokálne:  http://localhost:${cfg.port}/?t=${cfg.token}`);
   console.log('');
+});
+
+process.on('SIGINT', () => {
+  media.stop();
+  process.exit(0);
 });

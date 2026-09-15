@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<title>N-portal – mock E1</title>
+<style>
+  :root{
+    --bg:#0b0f17; --bg2:#0f1521; --card:#141b28; --card2:#182131; --line:#243044;
+    --text:#e9eef7; --muted:#8b96ab; --blue:#2f7ae5; --blue2:#3f8dff; --cyan:#3ec6ff;
+    --green:#2fa35a; --amber:#e0a12a; --red:#c8403f; --grey:#2b3446;
+    --r:22px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,Roboto,sans-serif;user-select:none;overflow:hidden}
+  body{background:radial-gradient(120% 90% at 20% 0%,#15213a 0%,var(--bg) 55%)}
+  .screen{position:fixed;inset:0;display:flex;flex-direction:column;padding:max(8px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));gap:2vh}
+
+  /* horný pás: režimy + stav */
+  .bar{display:flex;align-items:center;gap:2vw;height:7vh;min-height:30px}
+  .tabs{display:flex;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:3px}
+  .tab{padding:0 3.2vw;height:calc(7vh - 6px);min-height:24px;display:flex;align-items:center;border-radius:999px;font-size:3vh;font-weight:600;color:var(--muted)}
+  .tab.on{background:var(--blue);color:#fff}
+  .brand{margin-left:auto;letter-spacing:.35em;font-size:2.4vh;color:var(--muted);font-weight:600}
+  .dot{width:1.6vh;height:1.6vh;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
+  .dot.grey{background:var(--grey);box-shadow:none}
+  .state{font-size:2.7vh;color:var(--muted)}
+
+  /* ===== STATION ===== */
+  .station{flex:1;display:grid;grid-template-columns:1.05fr 1fr 1.25fr;gap:2vw;min-height:0}
+  .card{background:linear-gradient(160deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:var(--r);box-shadow:0 12px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04)}
+  .clock{display:flex;flex-direction:column;justify-content:center;padding:2vh 3vw}
+  .time{font-size:26vh;line-height:.82;font-weight:700;letter-spacing:-.04em}
+  .time small{display:block;font-size:26vh;color:#fff}
+  .date{margin-top:2.5vh;font-size:3.7vh;color:var(--muted)}
+  .usage{display:flex;align-items:center;justify-content:space-around;padding:1vh}
+  .ring{position:relative;width:27vh;height:27vh}
+  .ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+  .ring circle{fill:none;stroke-linecap:round}
+  .ring .track{stroke:#1f2a3d}
+  .ring .fill{stroke:var(--blue2)}
+  .ring .fill.inner{stroke:var(--cyan)}
+  .ring .fill.warn{stroke:var(--amber)}
+  .ring .fill.hot{stroke:var(--red)}
+  .ring .lbl{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .ring .pct{font-size:7.2vh;font-weight:700;line-height:1}
+  .ring .name{font-size:2.8vh;color:var(--muted);margin-top:.6vh}
+  .ring .reset{font-size:2.3vh;color:var(--muted);opacity:.8}
+  /* hudba: obrázok skladby v pozadí karty, ovládanie len ako znaky bez tlačidiel */
+  .music{position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;padding:2.5vh 3vw;gap:1vh;isolation:isolate}
+  .music .cover{position:absolute;inset:0;z-index:-2;background:
+      radial-gradient(60% 70% at 70% 30%,#5a3bd6 0%,transparent 60%),
+      radial-gradient(50% 60% at 20% 80%,#1c8ad8 0%,transparent 60%),
+      linear-gradient(135deg,#1b2a4a,#0b1020);filter:saturate(1.1)}
+  .music .shade{position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(11,15,23,.15) 0%,rgba(11,15,23,.55) 45%,rgba(11,15,23,.92) 100%)}
+  .title{font-size:4.4vh;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 2px 8px rgba(0,0,0,.6)}
+  .artist{font-size:3vh;color:#c9d3e6;margin-top:.3vh}
+  .src{font-size:2.3vh;color:var(--muted);margin-top:.6vh}
+  .ctrl{display:grid;grid-template-columns:1fr 1.2fr 1fr;margin-top:1.5vh}
+  .ctrl button{height:11vh;border:0;background:transparent;color:#fff;font-size:5.5vh;text-shadow:0 2px 10px rgba(0,0,0,.7)}
+  .ctrl button.main{font-size:8vh}
+  .ctrl button:active{transform:scale(.9);opacity:.8}
+
+  /* ===== SKP ===== */
+  .skp{flex:1;display:grid;grid-template-columns:13% 1fr;gap:2vw;min-height:0}
+  .strip{display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:1.5vh .5vw}
+  .strip .t{font-size:6.2vh;font-weight:700;line-height:.9;text-align:center}
+  .strip .d{font-size:2.1vh;color:var(--muted);margin-top:.8vh;text-align:center}
+  .strip .rings{display:flex;flex-direction:column;gap:1.2vh;align-items:center}
+  .mini{width:10.5vh;height:10.5vh}
+  .mini .pct{font-size:3vh}
+  .mini .name{font-size:1.8vh;margin-top:.2vh}
+  .strip .mus{display:flex;flex-direction:column;gap:.4vh;align-items:center}
+  .strip .mus button{width:6vh;height:5vh;border:0;background:transparent;color:#fff;font-size:3vh}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(2,1fr);gap:1.6vw}
+  .tile{border-radius:20px;border:1px solid var(--line);background:linear-gradient(160deg,var(--card2),var(--card));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5vh;box-shadow:0 10px 24px rgba(0,0,0,.35);color:var(--text)}
+  .tile .ic{font-size:8vh;line-height:1}
+  .tile .nm{font-size:3.1vh;font-weight:600;text-align:center;line-height:1.15}
+  .tile .et{font-size:2.2vh;color:var(--muted)}
+  .tile.on{background:linear-gradient(160deg,#2f7ae5,#1d55b4);border-color:#5a9bff;box-shadow:0 0 0 1px rgba(90,155,255,.35),0 12px 30px rgba(47,122,229,.35)}
+  .tile.off{opacity:.45}
+  .tile:active{transform:scale(.97)}
+  .hidden{display:none !important}
+  svg.i{width:8vh;height:8vh;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="bar">
+    <div class="tabs">
+      <div class="tab on" id="tabStation">Station</div>
+      <div class="tab" id="tabSkp">SKP</div>
+    </div>
+    <span class="dot" id="dot"></span>
+    <span class="state" id="state">SketchUp: Kuchyňa Novák · výber: 1</span>
+    <span class="brand">NOXUN</span>
+  </div>
+
+  <!-- ===== STATION ===== -->
+  <div class="station" id="station">
+    <div class="card clock">
+      <div class="time"><span id="hh">23</span><small id="mm">25</small></div>
+      <div class="date" id="date">Utorok, 15. september 2026</div>
+    </div>
+
+    <div class="card usage">
+      <div class="ring">
+        <svg viewBox="0 0 100 100">
+          <circle class="track" cx="50" cy="50" r="44" stroke-width="8"/>
+          <circle class="fill" cx="50" cy="50" r="44" stroke-width="8" stroke-dasharray="276.5" stroke-dashoffset="0"/>
+        </svg>
+        <div class="lbl"><div class="pct">100%</div><div class="name">Codex</div><div class="reset">reset št 18:32</div></div>
+      </div>
+      <div class="ring">
+        <svg viewBox="0 0 100 100">
+          <circle class="track" cx="50" cy="50" r="44" stroke-width="8"/>
+          <circle class="fill" cx="50" cy="50" r="44" stroke-width="8" stroke-dasharray="276.5" stroke-dashoffset="207"/>
+          <circle class="track" cx="50" cy="50" r="33" stroke-width="6"/>
+          <circle class="fill inner" cx="50" cy="50" r="33" stroke-width="6" stroke-dasharray="207.3" stroke-dashoffset="190"/>
+        </svg>
+        <div class="lbl"><div class="pct">25%</div><div class="name">Claude · 5h 8%</div><div class="reset">reset so 08:59</div></div>
+      </div>
+    </div>
+
+    <div class="card music">
+      <div class="cover"></div><div class="shade"></div>
+      <div style="min-width:0">
+        <div class="title">Bars</div>
+        <div class="artist">Ektor</div>
+        <div class="src">Chrome · hrá</div>
+      </div>
+      <div class="ctrl">
+        <button>⏮</button><button class="main">⏸</button><button>⏭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SKP ===== -->
+  <div class="skp hidden" id="skp">
+    <div class="card strip">
+      <div><div class="t"><span id="hh2">23</span><br><span id="mm2">25</span></div><div class="d" id="date2">ut 15. 9.</div></div>
+      <div class="rings">
+      <div class="ring mini">
+        <svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="42" stroke-width="9"/><circle class="fill" cx="50" cy="50" r="42" stroke-width="9" stroke-dasharray="263.9" stroke-dashoffset="0"/></svg>
+        <div class="lbl"><div class="pct">100%</div><div class="name">Codex</div></div>
+      </div>
+      <div class="ring mini">
+        <svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="42" stroke-width="9"/><circle class="fill" cx="50" cy="50" r="42" stroke-width="9" stroke-dasharray="263.9" stroke-dashoffset="198"/><circle class="track" cx="50" cy="50" r="30" stroke-width="7"/><circle class="fill inner" cx="50" cy="50" r="30" stroke-width="7" stroke-dasharray="188.5" stroke-dashoffset="173"/></svg>
+        <div class="lbl"><div class="pct">25%</div><div class="name">Claude</div></div>
+      </div>
+      </div>
+      <div class="mus"><button>⏮</button><button>⏸</button><button>⏭</button></div>
+    </div>
+
+    <div class="grid">
+      <div class="tile on">
+        <svg class="i" viewBox="0 0 48 48"><circle cx="24" cy="24" r="13"/><circle cx="24" cy="24" r="3" fill="currentColor"/><path d="M24 4v8M24 36v8M4 24h8M36 24h8"/></svg>
+        <div class="nm">Zamerať<br>výber</div><div class="et">E0 · hotové</div>
+      </div>
+      <div class="tile off">
+        <svg class="i" viewBox="0 0 48 48"><rect x="10" y="10" width="28" height="28" rx="3"/><path d="M24 4v6M18 7l6-3 6 3"/></svg>
+        <div class="nm">Zhora</div><div class="et">E2</div>
+      </div>
+      <div class="tile off">
+        <svg class="i" viewBox="0 0 48 48"><path d="M8 16l16-8 16 8v16l-16 8-16-8z"/><path d="M8 16l16 8 16-8M24 24v16"/></svg>
+        <div class="nm">Spredu</div><div class="et">E2</div>
+      </div>
+      <div class="tile off">
+        <svg class="i" viewBox="0 0 48 48"><path d="M8 16l16-8 16 8v16l-16 8-16-8z"/><path d="M8 16l16 8 16-8M24 24v16"/><path d="M4 24h6M7 21l-3 3 3 3"/></svg>
+        <div class="nm">Zľava</div><div class="et">E2</div>
+      </div>
+      <div class="tile off">
+        <svg class="i" viewBox="0 0 48 48"><path d="M14 20a12 12 0 1 1 3 10"/><path d="M8 18l6 2 2-6"/></svg>
+        <div class="nm">Predošlý<br>pohľad</div><div class="et">E2</div>
+      </div>
+      <div class="tile off">
+        <svg class="i" viewBox="0 0 48 48"><path d="M6 14V6h8M34 6h8v8M42 34v8h-8M14 42H6v-8"/><rect x="16" y="16" width="16" height="16" rx="2"/></svg>
+        <div class="nm">Celý<br>model</div><div class="et">E2</div>
+      </div>
+      <div class="tile off">
+        <svg class="i" viewBox="0 0 48 48"><path d="M4 24s7-12 20-12 20 12 20 12-7 12-20 12S4 24 4 24z"/><circle cx="24" cy="24" r="5"/></svg>
+        <div class="nm">Izolovať /<br>obnoviť</div><div class="et">E3</div>
+      </div>
+      <div class="tile off">
+        <svg class="i" viewBox="0 0 48 48"><path d="M6 8h18l16 16-12 12L6 26z"/><circle cx="14" cy="16" r="3" fill="currentColor"/></svg>
+        <div class="nm">Tagy</div><div class="et">E3</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Mock: len prepínač režimov, živý čas a ukážkové dáta. Nič sa neposiela na PC.
+  const $ = (s) => document.querySelector(s);
+  $('#tabStation').onclick = () => setMode('station');
+  $('#tabSkp').onclick = () => setMode('skp');
+  function setMode(m){
+    $('#station').classList.toggle('hidden', m !== 'station');
+    $('#skp').classList.toggle('hidden', m !== 'skp');
+    $('#tabStation').classList.toggle('on', m === 'station');
+    $('#tabSkp').classList.toggle('on', m === 'skp');
+    try { localStorage.setItem('mock.mode', m); } catch {}
+  }
+  try { setMode(localStorage.getItem('mock.mode') || 'station'); } catch {}
+  const days = ['Nedeľa','Pondelok','Utorok','Streda','Štvrtok','Piatok','Sobota'];
+  const daysS = ['ne','po','ut','st','št','pi','so'];
+  const months = ['január','február','marec','apríl','máj','jún','júl','august','september','október','november','december'];
+  function tick(){
+    const d = new Date(), hh = String(d.getHours()).padStart(2,'0'), mm = String(d.getMinutes()).padStart(2,'0');
+    $('#hh').textContent = hh; $('#mm').textContent = mm; $('#hh2').textContent = hh; $('#mm2').textContent = mm;
+    $('#date').textContent = `${days[d.getDay()]}, ${d.getDate()}. ${months[d.getMonth()]} ${d.getFullYear()}`;
+    $('#date2').textContent = `${daysS[d.getDay()]} ${d.getDate()}. ${d.getMonth()+1}.`;
+  }
+  tick(); setInterval(tick, 5000);
+  document.addEventListener('dblclick', () => { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(()=>{}); });
+</script>
+</body>
+</html>

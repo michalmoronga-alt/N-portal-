@@ -27,7 +27,9 @@ export default defineConfig({
       workbox: {
         // stav ide cez WebSocket, cache len pre shell aplikácie
         navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/mock/],
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
+        globIgnores: ['**/mock*'],
       },
     }),
   ],

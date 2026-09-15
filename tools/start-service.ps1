@@ -11,6 +11,7 @@ if (-not $NoBuild) {
   if (-not (Test-Path (Join-Path $svc 'node_modules'))) { Push-Location $svc; npm install; Pop-Location }
   Push-Location $app; npm run build; Pop-Location
   Push-Location $svc; npm run build; Pop-Location
+  & (Join-Path $svc 'helper\build.ps1')   # media-worker.exe (hudba + obrázok skladby)
 }
 
 # ak už služba beží na porte 8790, ukončiť ju (jedna inštancia)

@@ -9,7 +9,8 @@ Doplnené nápady na adaptívne rozhranie podľa aplikácie a výberu. Sú to bu
 | Etapa | Malý výsledok | Podmienka pokračovania |
 |---|---|---|
 | **E0 — dôkaz cesty** | PWA s jedným tlačidlom „Zamerať výber“ a ukazovateľom spojenia, lokálna služba na PC, Ruby prijímač. Pôvodné skiny a Engine nemeníme. **Postavené 15. 9. 2026, otestované na PC** (pozri POSTUP.md). | Na reálnom mobile: správny model, odozva, ruka na myši pokračuje bez klikania; chyba/odpojenie zrozumiteľné. |
-| **E1 — Station** | Čas, dátum, usage (Claude weekly + 5h, Codex weekly) zo súboru existujúceho skinu, hudba cez Windows Media Session (názov, play/pause, ďalšia/predošlá). Ručný prepínač Station/SKP. | Čitateľnosť a dotyk na skutočnom mobile; stabilné prepínanie; Station funguje bez SketchUpu; displej sa neuspáva. |
+| **E1 — Station** | Čas, dátum, usage (Claude weekly + 5h, Codex weekly) zo súboru existujúceho skinu, hudba cez Windows Media Session (názov, play/pause, ďalšia/predošlá, obrázok skladby v pozadí karty). Ručný prepínač Station/SKP. Rozloženie podľa odsúhlaseného mocku (`app/public/mock.html`, 15. 9. 2026). | Čitateľnosť a dotyk na skutočnom mobile; stabilné prepínanie; Station funguje bez SketchUpu; displej sa neuspáva. |
+| **E1b — dotiahnutie UI** | Interaktívne prechody a animácie: plynulé prepnutie Station/SKP, animované kruhy usage, stlačenie dlaždíc, prechod obrázka skladby. Požiadavka Michala z 15. 9. 2026; môže ísť aj po E1, funkčnosť má prednosť. | Animácie neznižujú odozvu tlačidiel a nezaťažujú starší mobil. |
 | **E2 — navigácia** | Po jednom: zhora, spredu, zľava so zameraním výberu; predošlý pohľad a celý model. | Jednoznačné osi/projekcia, zachovaný výber, overenie na reálnej zákazke. |
 | **E3 — viditeľnosť** | Po jednom: izolovať/obnoviť, obľúbené tagy, zobrazenie skrytých objektov. | Správne obnovenie pôvodného stavu a synchronizácia aj pri zmene priamo v SketchUpe. |
 
