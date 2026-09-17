@@ -22,6 +22,10 @@
   --wait-txt: #e4d6ff;
   --done-txt: #c6f3df;
   --busy-txt: #b9d5ff;
+  /* obiehajúce body aktivity agentov na kruhoch usage (mock5) */
+  --busyDot: #8fc2ff;
+  --waitDot: #c9b3ff;
+  --doneDot: #7ee2b0;
   --glass: rgba(255, 255, 255, .06);
   --edge: rgba(255, 255, 255, .14);
   --edge2: rgba(255, 255, 255, .28);
@@ -151,6 +155,17 @@ html.offline .bg img { filter: grayscale(.85) brightness(.8); }
 .ring.full .pct { color: #ff9d9c; }
 .ring .reset { display: none; }
 .ring.stale .pct, .ring.stale .name { color: var(--muted); }
+
+/* aktivita agentov: obiehajúce body po dráhe vonkajšieho kruhu (podľa mocku mock5.html).
+   Vrstva je nad SVG aj nad percentami, ale body idú po dráhe kruhu, nie do stredu. */
+.ring::before { content: ''; position: absolute; inset: 6%; border-radius: 50%; box-shadow: 0 0 0 0 rgba(124, 77, 255, 0); transition: box-shadow .6s; pointer-events: none; }
+.ring.glow::before { animation: ringglow 1.8s ease-in-out infinite; }
+@keyframes ringglow { 0%, 100% { box-shadow: 0 0 12px 2px rgba(124, 77, 255, .15); } 50% { box-shadow: 0 0 26px 8px rgba(124, 77, 255, .42); } }
+.orbit { position: absolute; inset: 0; pointer-events: none; }
+.orbit i { position: absolute; left: 50%; top: 50%; width: 1px; height: 1px; border-radius: 50%; background: var(--c); box-shadow: 0 0 6px var(--c), 0 0 12px var(--c); transform: translate(-50%, -50%) scale(0); will-change: transform; }
+.orbit i.g { box-shadow: 0 0 4px var(--c); filter: blur(.6px); } /* chvost: stopy za bodom, slabnúce */
+/* pri „obmedziť pohyb“ nech žiara len svieti, nepulzuje (html.reduce * by ju inak rozblikalo) */
+html.reduce .ring.glow::before { animation: none !important; box-shadow: 0 0 18px 4px rgba(124, 77, 255, .3); }
 
 /* hudba: obrázok skladby v pozadí, čisté ikony */
 .music { display: flex; flex-direction: column; justify-content: flex-end; padding: 2.5vh 3vw; gap: 1vh; isolation: isolate; }

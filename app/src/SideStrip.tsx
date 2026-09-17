@@ -7,7 +7,8 @@
 // Ak sa niekedy vrátia, patria sem ako voliteľná prop (napr. `resets`) + vlastné pravidlá v CSS,
 // nie ako prepisy tried `.strip`.
 import Ring from './Ring';
-import type { MediaState, UsageState } from './service';
+import type { AgentsState, MediaState, UsageState } from './service';
+import { providerActivity } from './ringActivity';
 import { formatDateDayMonth } from './time';
 import { ledTap } from './ledPulse';
 import { ProviderLogo } from './Logos';
@@ -16,11 +17,13 @@ import { IconPrev, IconNext, IconPlay, IconPause } from './MediaIcons';
 interface Props {
   usage: UsageState | null;
   media: MediaState | null;
+  /** stav agentov pre obiehajúce body na mini kruhoch (null = bez spojenia → žiadne body) */
+  agents: AgentsState | null;
   sendMedia: (a: 'play' | 'pause' | 'toggle' | 'next' | 'prev') => void;
   now: Date;
 }
 
-export default function SideStrip({ usage, media, sendMedia, now }: Props) {
+export default function SideStrip({ usage, media, agents, sendMedia, now }: Props) {
   const stale = !usage || !usage.available || usage.stale;
   const playing = media?.status === 'Playing';
 
@@ -39,8 +42,8 @@ export default function SideStrip({ usage, media, sendMedia, now }: Props) {
         </div>
       </div>
       <div className="rings">
-        <div className="rw"><Ring size="mini" weekly={usage?.codex.weeklyUsed ?? null} label="" stale={stale} /><div className="name"><ProviderLogo provider="codex" />Codex</div></div>
-        <div className="rw"><Ring size="mini" weekly={usage?.claude.weeklyUsed ?? null} session={usage?.claude.sessionUsed ?? null} label="" stale={stale} /><div className="name"><ProviderLogo provider="claude" />Claude</div></div>
+        <div className="rw"><Ring size="mini" weekly={usage?.codex.weeklyUsed ?? null} label="" stale={stale} activity={providerActivity(agents, 'codex')} /><div className="name"><ProviderLogo provider="codex" />Codex</div></div>
+        <div className="rw"><Ring size="mini" weekly={usage?.claude.weeklyUsed ?? null} session={usage?.claude.sessionUsed ?? null} label="" stale={stale} activity={providerActivity(agents, 'claude')} /><div className="name"><ProviderLogo provider="claude" />Claude</div></div>
       </div>
     </aside>
   );

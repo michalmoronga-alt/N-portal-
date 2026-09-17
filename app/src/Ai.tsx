@@ -9,6 +9,8 @@ import { useClock, formatDuration as dur, formatAgo as ago } from './time';
 
 interface Props {
   agents: AgentsState | null;
+  /** je spojenie so službou? bez neho sú dáta agentov neplatné pre body na kruhoch v páse */
+  online: boolean;
   usage: UsageState | null;
   media: MediaState | null;
   sendMedia: (a: 'play' | 'pause' | 'toggle' | 'next' | 'prev') => void;
@@ -16,7 +18,7 @@ interface Props {
 
 const RANK: Record<string, number> = { waiting: 0, busy: 1, done: 2, idle: 3 };
 
-export default function Ai({ agents, usage, media, sendMedia }: Props) {
+export default function Ai({ agents, online, usage, media, sendMedia }: Props) {
   const now = useClock();
   const t = now.getTime();
 
@@ -33,7 +35,7 @@ export default function Ai({ agents, usage, media, sendMedia }: Props) {
 
   return (
     <div className="ai">
-      <SideStrip usage={usage} media={media} sendMedia={sendMedia} now={now} />
+      <SideStrip usage={usage} media={media} agents={online ? agents : null} sendMedia={sendMedia} now={now} />
 
       <section className={`card glass panel ${available ? '' : 'unavail'}`}>
         <div className="hd">

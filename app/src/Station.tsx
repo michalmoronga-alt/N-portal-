@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Ring from './Ring';
-import type { MediaState, UsageState } from './service';
+import type { AgentsState, MediaState, UsageState } from './service';
+import { providerActivity } from './ringActivity';
 import { useClock, formatDateLong, formatCountdown } from './time';
 import { ledTap } from './ledPulse';
 import VolumeStrip from './VolumeStrip';
@@ -10,6 +11,8 @@ import { IconPrev, IconNext, IconPlay, IconPause } from './MediaIcons';
 interface Props {
   usage: UsageState | null;
   media: MediaState | null;
+  /** stav agentov pre obiehajúce body na kruhoch (null = bez spojenia → žiadne body) */
+  agents: AgentsState | null;
   online: boolean; // bez spojenia sú tlačidlá zablokované, obsah ostáva
   sendMedia: (a: 'play' | 'pause' | 'toggle' | 'next' | 'prev') => void;
   sendVolume: (pct: number) => void;
@@ -17,7 +20,7 @@ interface Props {
   active: boolean; // obrazovka je viditeľná (detail sa zatvorí pri odchode)
 }
 
-export default function Station({ usage, media, online, sendMedia, sendVolume, bigPlayer, active }: Props) {
+export default function Station({ usage, media, agents, online, sendMedia, sendVolume, bigPlayer, active }: Props) {
   const canPlay = online && !!media?.available;
   const now = useClock();
   const [detail, setDetail] = useState(false);
@@ -30,6 +33,7 @@ export default function Station({ usage, media, online, sendMedia, sendVolume, b
   const mm = String(now.getMinutes()).padStart(2, '0');
   const stale = !usage || !usage.available || usage.stale;
   const playing = media?.status === 'Playing';
+  const ringAgents = online ? agents : null; // bez spojenia sú dáta agentov neplatné → body zmiznú
   const dayName = formatDateLong(now).split(',')[0];
   const dateRest = formatDateLong(now).split(', ')[1] ?? '';
 
@@ -66,8 +70,8 @@ export default function Station({ usage, media, online, sendMedia, sendVolume, b
         }}
       >
         <div className="rings">
-          <Ring weekly={usage?.codex.weeklyUsed ?? null} label={<><ProviderLogo provider="codex" />Codex</>} stale={stale} />
-          <Ring weekly={usage?.claude.weeklyUsed ?? null} session={usage?.claude.sessionUsed ?? null} label={<><ProviderLogo provider="claude" />Claude</>} stale={stale} />
+          <Ring weekly={usage?.codex.weeklyUsed ?? null} label={<><ProviderLogo provider="codex" />Codex</>} stale={stale} activity={providerActivity(ringAgents, 'codex')} />
+          <Ring weekly={usage?.claude.weeklyUsed ?? null} session={usage?.claude.sessionUsed ?? null} label={<><ProviderLogo provider="claude" />Claude</>} stale={stale} activity={providerActivity(ringAgents, 'claude')} />
         </div>
         {detail && (
           <div className="dtl">

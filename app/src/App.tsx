@@ -312,13 +312,13 @@ export default function App() {
 
       <main className="main">
         <div ref={stationRef} className={`layer ${shownMode.current === 'station' ? '' : 'hidden'}`}>
-          <Station usage={usage} media={media} online={online} sendMedia={sendMedia} sendVolume={sendVolume} bigPlayer={bigPlayer} active={mode === 'station'} />
+          <Station usage={usage} media={media} agents={agents} online={online} sendMedia={sendMedia} sendVolume={sendVolume} bigPlayer={bigPlayer} active={mode === 'station'} />
         </div>
         <div ref={skpRef} className={`layer ${shownMode.current === 'skp' ? '' : 'hidden'}`}>
-          <Skp online={online} sketchup={sketchup} sketchupActive={sketchupActive} usage={usage} media={media} lastAck={lastAck} sendCommand={sendCommand} sendMedia={sendMedia} />
+          <Skp online={online} sketchup={sketchup} sketchupActive={sketchupActive} usage={usage} media={media} agents={agents} lastAck={lastAck} sendCommand={sendCommand} sendMedia={sendMedia} />
         </div>
         <div ref={aiRef} className={`layer ${shownMode.current === 'ai' ? '' : 'hidden'}`}>
-          <Ai agents={agents} usage={usage} media={media} sendMedia={sendMedia} />
+          <Ai agents={agents} online={online} usage={usage} media={media} sendMedia={sendMedia} />
         </div>
 
         {/* toast o agentovi – len v Station/SKP, v režime AI je stav vidno na kartách */}
