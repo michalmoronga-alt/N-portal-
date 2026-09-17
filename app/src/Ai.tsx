@@ -1,28 +1,24 @@
-// Režim AI: bočný pás (čas, dva kruhy usage, malý prehrávač) + sklenená karta „Agenti“.
-// Rozloženie a hodnoty CSS podľa schváleného mocku app/public/mock4.html.
+// Režim AI: bočný pás (rovnaký ako v SKP – SideStrip) + sklenená karta „Agenti“.
+// Rozloženie karty a hodnoty CSS podľa schváleného mocku app/public/mock4.html;
+// farebnosť stavov je novšia (fialová „čaká“, zelená „hotovo“, modrá „pracuje“).
 import { useMemo } from 'react';
-import Ring from './Ring';
+import SideStrip from './SideStrip';
 import { ProviderLogo } from './Logos';
 import type { AgentInfo, AgentStatus, AgentsState, MediaState, UsageState } from './service';
-import { useClock, formatDateDayMonth, formatCountdown, formatReset, formatDuration as dur, formatAgo as ago } from './time';
-import { ledTap } from './ledPulse';
-import { IconPrev, IconNext, IconPlay, IconPause } from './MediaIcons';
+import { useClock, formatDuration as dur, formatAgo as ago } from './time';
 
 interface Props {
   agents: AgentsState | null;
   usage: UsageState | null;
   media: MediaState | null;
-  online: boolean;
   sendMedia: (a: 'play' | 'pause' | 'toggle' | 'next' | 'prev') => void;
 }
 
 const RANK: Record<string, number> = { waiting: 0, busy: 1, done: 2, idle: 3 };
 
-export default function Ai({ agents, usage, media, online, sendMedia }: Props) {
+export default function Ai({ agents, usage, media, sendMedia }: Props) {
   const now = useClock();
   const t = now.getTime();
-  const stale = !usage || !usage.available || usage.stale;
-  const playing = media?.status === 'Playing';
 
   // poradie: čaká na teba → pracuje → hotovo → nečinný; v skupine podľa poslednej aktivity zostupne
   const list = useMemo(() => {
@@ -35,53 +31,9 @@ export default function Ai({ agents, usage, media, online, sendMedia }: Props) {
   const lastIdle = list.find((a) => a.status === 'idle') ?? null;
   const showEmpty = available && active.length === 0;
 
-  const codexSub = usage?.codex.weeklyResetAt ? `reset ${formatReset(usage.codex.weeklyResetAt)}` : 'reset —';
-  const claudeSession = usage?.claude.sessionUsed;
-  const claudeSub =
-    claudeSession === null || claudeSession === undefined
-      ? '5h —'
-      : `5h ${Math.round(claudeSession)}% · ${usage?.claude.sessionResetAt ? `reset ${formatCountdown(usage.claude.sessionResetAt, t)}` : 'bez resetu'}`;
-  const codexFull = !stale && (usage?.codex.weeklyUsed ?? 0) >= 100;
-  const claudeFull = !stale && (usage?.claude.weeklyUsed ?? 0) >= 100;
-
   return (
     <div className="ai">
-      <aside className="strip ai-strip">
-        <div className="strip-time">
-          <div className="t">{String(now.getHours()).padStart(2, '0')}:{String(now.getMinutes()).padStart(2, '0')}</div>
-          <div className="dd">{formatDateDayMonth(now)}</div>
-        </div>
-
-        <div className="rings">
-          <Ring size="ai" weekly={usage?.codex.weeklyUsed ?? null} label={<><ProviderLogo provider="codex" />Codex</>} stale={stale} />
-          <div className={`rsub ${codexFull ? 'red' : ''}`}>{codexSub}</div>
-          <Ring
-            size="ai"
-            weekly={usage?.claude.weeklyUsed ?? null}
-            session={usage?.claude.sessionUsed ?? null}
-            label={<><ProviderLogo provider="claude" />Claude</>}
-            stale={stale}
-          />
-          <div className={`rsub ${claudeFull ? 'red' : ''}`}>{claudeSub}</div>
-        </div>
-
-        <div className="player">
-          <div className="np">
-            {media?.available ? (
-              <><span>♪ </span><b>{media.title || 'Bez názvu'}</b>{media.artist ? ` · ${media.artist}` : ''}</>
-            ) : (
-              <span className="muted">nič nehrá</span>
-            )}
-          </div>
-          <div className="mus">
-            <button onClick={() => { ledTap(); sendMedia('prev'); }} disabled={!online || !media?.available} aria-label="Predošlá"><IconPrev /></button>
-            <button className="main" onClick={() => { ledTap(); sendMedia('toggle'); }} disabled={!online || !media?.available} aria-label="Prehrať / pauza">
-              {playing ? <IconPause /> : <IconPlay />}
-            </button>
-            <button onClick={() => { ledTap(); sendMedia('next'); }} disabled={!online || !media?.available} aria-label="Ďalšia"><IconNext /></button>
-          </div>
-        </div>
-      </aside>
+      <SideStrip usage={usage} media={media} sendMedia={sendMedia} now={now} />
 
       <section className={`card glass panel ${available ? '' : 'unavail'}`}>
         <div className="hd">

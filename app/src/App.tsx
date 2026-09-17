@@ -148,7 +148,7 @@ export default function App() {
 
   // ---------- upozornenie na agenta naprieč režimami ----------
   const [notices, setNotices] = useState<Notice[]>([]);
-  const [toast, setToast] = useState<{ text: string; provider: string } | null>(null);
+  const [toast, setToast] = useState<{ text: string; provider: string; kind: 'waiting' | 'done' } | null>(null);
   const prevStatus = useRef<Map<string, AgentStatus> | null>(null);
   const modeRef = useRef<Mode>(mode);
   useEffect(() => {
@@ -180,6 +180,7 @@ export default function App() {
       const n = fresh[fresh.length - 1];
       setToast({
         provider: n.provider,
+        kind: n.kind,
         text: n.kind === 'done' ? `${n.project} skončil${n.runMs ? ` (${formatDuration(n.runMs)})` : ''}` : `${n.project} čaká na teba`,
       });
     }
@@ -312,11 +313,11 @@ export default function App() {
           <Skp online={online} sketchup={sketchup} usage={usage} media={media} lastAck={lastAck} sendCommand={sendCommand} sendMedia={sendMedia} />
         </div>
         <div ref={aiRef} className={`layer ${shownMode.current === 'ai' ? '' : 'hidden'}`}>
-          <Ai agents={agents} usage={usage} media={media} online={online} sendMedia={sendMedia} />
+          <Ai agents={agents} usage={usage} media={media} sendMedia={sendMedia} />
         </div>
 
         {/* toast o agentovi – len v Station/SKP, v režime AI je stav vidno na kartách */}
-        <div className={`toast glass agent-toast ${toast && mode !== 'ai' ? 'show' : ''}`} aria-live="polite">
+        <div className={`toast glass agent-toast ${toast ? toast.kind : ''} ${toast && mode !== 'ai' ? 'show' : ''}`} aria-live="polite">
           {toast && <ProviderLogo provider={toast.provider} colored />}
           <span>{toast?.text ?? ''}</span>
         </div>

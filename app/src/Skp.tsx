@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import Ring from './Ring';
+import SideStrip from './SideStrip';
 import type { Ack, MediaState, SketchUpState, UsageState } from './service';
-import { useClock, formatDateDayMonth } from './time';
+import { useClock } from './time';
 import { ledTap, ledError } from './ledPulse';
 import SwipeTile, { type SwipeDir } from './SwipeTile';
-import { IconPrev, IconNext, IconPlay, IconPause } from './MediaIcons';
-import { ProviderLogo } from './Logos';
 
 type Flash = { kind: 'ok' | 'error' | 'warn'; text: string; until: number } | null;
 const REPLY_TIMEOUT_MS = 3000;
@@ -111,30 +109,10 @@ export default function Skp({ online, sketchup, usage, media, lastAck, sendComma
     }
   };
 
-  const stale = !usage || !usage.available || usage.stale;
-  const playing = media?.status === 'Playing';
-
   return (
     <div className="skp">
-      {/* zúžený Station: bez rámčeka, priamo na pozadí */}
-      <aside className="strip">
-        <div className="strip-time">
-          <div className="t">{String(now.getHours()).padStart(2, '0')}:{String(now.getMinutes()).padStart(2, '0')}</div>
-          <div className="dd">{formatDateDayMonth(now)}</div>
-        </div>
-        <div className="player">
-          <div className="np">{media?.available ? <><span>♪ </span><b>{media.title || 'Bez názvu'}</b>{media.artist ? ` · ${media.artist}` : ''}</> : <span className="muted">nič nehrá</span>}</div>
-          <div className="mus">
-            <button onClick={() => { ledTap(); sendMedia('prev'); }} disabled={!media?.available} aria-label="Predošlá"><IconPrev /></button>
-            <button className="main" onClick={() => { ledTap(); sendMedia('toggle'); }} disabled={!media?.available} aria-label="Prehrať / pauza">{playing ? <IconPause /> : <IconPlay />}</button>
-            <button onClick={() => { ledTap(); sendMedia('next'); }} disabled={!media?.available} aria-label="Ďalšia"><IconNext /></button>
-          </div>
-        </div>
-        <div className="rings">
-          <div className="rw"><Ring size="mini" weekly={usage?.codex.weeklyUsed ?? null} label="" stale={stale} /><div className="name"><ProviderLogo provider="codex" />Codex</div></div>
-          <div className="rw"><Ring size="mini" weekly={usage?.claude.weeklyUsed ?? null} session={usage?.claude.sessionUsed ?? null} label="" stale={stale} /><div className="name"><ProviderLogo provider="claude" />Claude</div></div>
-        </div>
-      </aside>
+      {/* zúžený Station: bez rámčeka, priamo na pozadí – zdieľaný s režimom AI */}
+      <SideStrip usage={usage} media={media} sendMedia={sendMedia} now={now} />
 
       <div className="skp-main">
         <div className="grid">

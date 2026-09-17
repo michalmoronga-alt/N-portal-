@@ -6,7 +6,7 @@ interface Props {
   session?: number | null; // null/undefined = bez vnútorného prstenca (Codex)
   label: ReactNode; // text alebo mini logo + text
   sub?: string;
-  size?: 'big' | 'mini' | 'ai'; // 'ai' = stredná veľkosť pre bočný pás režimu AI
+  size?: 'big' | 'mini';
   stale?: boolean;
 }
 
