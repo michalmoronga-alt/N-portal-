@@ -1,7 +1,8 @@
 // Dlaždica „Pohľad“: potiahnutie určuje smer pohľadu. Krátke klepnutie len ukáže smery (ochrana proti náhodnému dotyku).
 import { useRef, useState, type ReactNode } from 'react';
+import { swipeDirOf, type SwipeDir } from './swipe';
 
-export type SwipeDir = 'up' | 'down' | 'left' | 'right';
+export type { SwipeDir };
 
 interface Props {
   className: string;
@@ -13,21 +14,11 @@ interface Props {
   children: ReactNode;
 }
 
-const MIN_DIST = 36; // px
-const RATIO = 1.4; // dominantná os musí byť aspoň takto výraznejšia
-
 export default function SwipeTile({ className, disabled, blocked, onSwipe, onTap, children }: Props) {
   const start = useRef<{ x: number; y: number; id: number } | null>(null);
   const [live, setLive] = useState<SwipeDir | null>(null);
   const [hint, setHint] = useState(false);
-
-  const dirOf = (dx: number, dy: number): SwipeDir | null => {
-    const ax = Math.abs(dx), ay = Math.abs(dy);
-    if (Math.max(ax, ay) < MIN_DIST) return null;
-    if (ax > ay * RATIO) return dx > 0 ? 'right' : 'left';
-    if (ay > ax * RATIO) return dy > 0 ? 'down' : 'up';
-    return null;
-  };
+  const dirOf = swipeDirOf;
 
   return (
     <button

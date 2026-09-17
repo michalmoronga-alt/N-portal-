@@ -318,7 +318,7 @@ export default function App() {
           <Skp online={online} sketchup={sketchup} sketchupActive={sketchupActive} usage={usage} media={media} agents={agents} lastAck={lastAck} sendCommand={sendCommand} sendMedia={sendMedia} />
         </div>
         <div ref={aiRef} className={`layer ${shownMode.current === 'ai' ? '' : 'hidden'}`}>
-          <Ai agents={agents} online={online} usage={usage} media={media} sendMedia={sendMedia} />
+          <Ai agents={agents} online={online} usage={usage} media={media} sendMedia={sendMedia} active={mode === 'ai'} />
         </div>
 
         {/* toast o agentovi – len v Station/SKP, v režime AI je stav vidno na kartách */}

@@ -309,7 +309,11 @@ export function useService() {
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('online', onOnline);
       window.removeEventListener('pageshow', onVisible);
-      wsRef.current?.close();
+      // odkaz uvoľniť hneď, nie až v `onclose`: vo vývoji React efekt zámerne zopakuje a ďalší
+      // `connect()` by inak videl starý socket a už sa nikdy nepripojil (v builde sa efekt nezopakuje)
+      const ws = wsRef.current;
+      wsRef.current = null;
+      ws?.close();
     };
   }, []);
 
