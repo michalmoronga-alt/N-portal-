@@ -22,6 +22,7 @@ Mobil nie je monitor Windows (žiadny spacedesk), preto dotyk nikdy neukradne ku
 |---|---|
 | **Station** | Hodiny s dňom a dátumom, dva usage kruhy (Codex týždeň; Claude týždeň + 5h prstenec) s detailom po potiahnutí (resety, odpočet do resetu 5h, stav účtu), hudba z Windows s obrázkom skladby, ovládanie prehrávania, hlasitosť PC ťahom po hornom okraji karty. |
 | **SKP** | Zúžený Station v bočnom páse a 8 dlaždíc: Zamerať výber, Pohľad (potiahnutie hore/dole/vľavo/vpravo = zhora/spredu/zľava/sprava), ISO, X‑Ray, Predošlý pohľad, Celý model, Izolovať/Obnoviť, Skryté objekty. Výsledok povelu ako toast. |
+| **AI** (pripravuje sa) | Pri aktívnom Claude alebo Codex: bočný pás ako v SKP a karta „Agenti“ so stavom relácií (pracuje / čaká na teba / hotovo), upozornenie štítkom a LED vo všetkých režimoch. Špecifikácia: [docs/AI-REZIM.md](docs/AI-REZIM.md). |
 | **AUTO** | Aktívny SketchUp na PC → SKP, iná aplikácia → Station, Chrome → väčší prehrávač. Pri dvoch otvorených SketchUpoch idú povely do toho, v ktorom si naposledy klikol. |
 
 Ďalšie: pri výpadku spojenia celý panel zosivie s pruhom „PC neodpovedá“ a sám sa pripojí späť (aj po spánku telefónu či výpadku Wi‑Fi), spätná väzba zadnými LED telefónu (nepočuteľný tón cez prehrávač), automatický štart služby po prihlásení do Windows, nastavenia pod ozubeným kolieskom (režim, LED, animácie, celá obrazovka), rýchle prepnutie potiahnutím po hornej lište.

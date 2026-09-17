@@ -1,6 +1,6 @@
 # Plán po malých etapách
 
-Stav k 15. 9. 2026 (večer): smer PWA + lokálna služba (pozri [SMER.md](SMER.md)). **Hotové a overené na mobile: E0, E1, E2, E3 (bez tagov), E4, E5, E6 a E1b (rework, 1. kolo).** Rozsah každej ďalšej etapy potvrdiť pred začatím; neimplementovať celý backlog naraz.
+Stav k 17. 9. 2026: smer PWA + lokálna služba (pozri [SMER.md](SMER.md)). **Hotové a overené na mobile: E0, E1, E2, E3 (bez tagov), E4, E5, E6, E1b (rework, 1. kolo), E7 (spoľahlivosť spojenia, overené na PC).** Rozpracované: **AI‑1 – režim AI** (špecifikácia v [AI-REZIM.md](AI-REZIM.md), mock schválený). Rozsah každej ďalšej etapy potvrdiť pred začatím; neimplementovať celý backlog naraz.
 
 Doplnené nápady na adaptívne rozhranie podľa aplikácie a výberu. Sú to budúce experimenty, nie rozšírenie V1. Pred implementáciou najprv research hotových riešení a malé diagnostické testy podľa [POSTUP.md](POSTUP.md).
 
@@ -29,6 +29,10 @@ E0 je samostatný technický experiment, nie hotová V1. Kandidát na prvý pou�
 | Izolovať / Obnoviť | Dočasná izolácia s viditeľným stavom; zachovať veci schované už pred izoláciou. |
 | Tagy | Stránka pripnutých tagov a ich skutočného stavu, nie celý miniatúrny správca tagov. |
 | Skryté objekty | Prepínať ich zobrazenie. Oddelené od skrytej geometrie, tagov a trvalého odkrytia. |
+
+## Etapa AI‑1 — režim AI (schválené 17. 9. 2026)
+
+Tretí režim popri Station a SKP; spúšťa sa pri aktívnom okne Claude alebo Codex. Bočný pás ako v SKP (čas, usage v strede, malý prehrávač), karta „Agenti“ so živým stavom relácií Claude Code a Codexu (pracuje / čaká na teba / hotovo / nečinný), štítok a LED upozornenie naprieč režimami, mini logá. Celá špecifikácia, zdroje dát a kontrakt: [AI-REZIM.md](AI-REZIM.md). Nasledujú AI‑2 (detail karty potiahnutím: model, effort, tokeny, ťahy, trvanie) a AI‑3 (klepnutie prenesie okno relácie dopredu).
 
 ## Backlog — až po základnom teste
 
@@ -92,6 +96,9 @@ Nehromadiť staré povely; po pustení prsta pohyb zastaviť. Viacprstové gest�
 | Prispôsobenie | Veľkosť, farby a priehľadnosť, detail usage/resetov po dotyku, neskôr integrácia nastavení JaxCore. |
 | Spätná väzba LED (hotové 15. 9. 2026) | Zadné LED telefónu cez nepočuteľný 45 Hz „beat“ prehraný ako médium (jediná cesta, ktorá Rhythm Lights spustí). 400 ms pri klepnutí, 800 ms dvojpulz pri chybe, prepínač v páse. Neskôr: dlhší pulz pri dokončení dlhých akcií, rozlíšenie režimov. |
 | Prevádzka | Lišta Windows iba na vybraných monitoroch; obnova polohy pri odpojení mobilu. |
+| Režim AI (po AI‑1) | Detail karty potiahnutím (model, effort, tokeny, ťahy, trvanie, nástroje); klepnutie = okno relácie dopredu na PC; predpoveď usage (tempo, kedy dôjde týždeň, odporúčanie Claude/Codex); dnešná práca po projektoch; rozlíšenie „hotovo“ vs. „čaká na otázku“. Zdroj oficiálnych log: logo.dev (aplikácia je súkromná), zatiaľ vlastné ikony. |
+| Ambientný režim (odložené 17. 9.) | Po 5 min bez dotyku stmavnúť, ostanú hodiny a kruhy. |
+| Hudba, 2. kolo (odložené) | Priebeh skladby s posunom ťahom, gestá na obale (ťah = ďalšia/predošlá, klepnutie = play/pauza). |
 
 Neplánovať zatiaľ editor ľubovoľných makier, druhý zber usage, presné formuláre rozmerov ani gestá upravujúce geometriu. Funkcie pridávať podľa reálnej potreby.
 
