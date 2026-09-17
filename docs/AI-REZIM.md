@@ -64,7 +64,18 @@ Nová téma `agents`, posielaná pri zmene a najmenej každých 5 s:
 - Kruhy usage v Station a SKP dostanú mini logo pri názve.
 - Stav agentov nesmie ovplyvniť povely do SketchUpu ani hudbu.
 
+## Rozhodnutia počas implementácie (17. 9. 2026)
+
+- Relácia Claude bez záznamu (otvorené okno bez prvého ťahu) sa nezobrazuje (šum).
+- Codex ťah `inProgress` = pracuje len ak `updated_at` < 5 min (zaseknuté ťahy po páde ostávajú v databáze).
+- `today.activeMs` sa počíta od štartu služby; perzistencia cez reštart je nápad na neskôr.
+- Ťah po hornej lište cykluje dookola (z AI doľava → Station). Klepnutie na štítok zruší všetky upozornenia.
+- V režime AI horný pás ukazuje „Aktívne okno: … · N relácie“ namiesto stavu SketchUpu.
+- Prázdny stav „Žiadny agent nebeží“ sa ukáže, keď nie je nikto v stave pracuje/čaká/hotovo; nečinné relácie sa vtedy ako karty nevypisujú (len riadok „Naposledy“).
+
 ## Ďalšie nápady (na neskôr, po schválení)
+
+- `today.activeMs` ukladať do `~/.n-portal`, aby prežil reštart služby.
 
 - AI‑2 predpoveď usage: tempo, „týždeň dôjde v piatok“, varovanie „Codex vyčerpaný do soboty 14:00, použi Claude“.
 - Dnešná práca podrobne: tri projekty dňa, ťahy, aktívny čas, tokeny.
