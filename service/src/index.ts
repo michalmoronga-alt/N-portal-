@@ -1,6 +1,6 @@
 // N-portal – lokálna služba na PC.
 // HTTP: servuje zostavenú PWA z ../app/dist a /api/health.
-// WebSocket /ws?t=<token>: posiela stav po témach (sketchup, usage, media, foreground) a prijíma povely z PWA.
+// WebSocket /ws?t=<token>: posiela stav po témach (sketchup, usage, media, foreground, agents) a prijíma povely z PWA.
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -12,11 +12,13 @@ import { readInstances, buildState, sendCommand, ALLOWED_ACTIONS, type SketchUpS
 import { readUsage, USAGE_FILE, type UsageState } from './usage.js';
 import { MediaBridge, MEDIA_ACTIONS } from './media.js';
 import { ForegroundBridge } from './foreground.js';
+import { AgentsBridge } from './agents.js';
 
-const VERSION = '0.5.0';
+const VERSION = '0.6.0';
 const SKETCHUP_POLL_MS = 250;
 const USAGE_POLL_MS = 5000;
 const HEARTBEAT_PUSH_MS = 2000;
+const AGENTS_PUSH_MS = 5000; // agentov pošleme aj bez zmeny, nech PWA vie, že údaje žijú
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const APP_DIST = path.resolve(here, '..', '..', 'app', 'dist');
@@ -46,6 +48,7 @@ function log(msg: string) {
 
 const media = new MediaBridge(log);
 const foreground = new ForegroundBridge(log);
+const agents = new AgentsBridge(log);
 let lastSketchupFgPid: number | null = null; // relácia SketchUpu, ktorej okno bolo naposledy v popredí
 let sketchup: SketchUpState = buildState(readInstances(), lastSketchupFgPid);
 let usage: UsageState = readUsage();
@@ -67,7 +70,7 @@ const server = http.createServer((req, res) => {
     res.end(
       JSON.stringify({
         ok: true, version: VERSION, time: Date.now(),
-        sketchup, usage, foreground: foreground.state,
+        sketchup, usage, foreground: foreground.state, agents: agents.state,
         media: { ...media.state, thumb: media.state.thumb ? '(obrázok)' : null },
       }),
     );
@@ -118,6 +121,7 @@ wss.on('connection', (ws, req) => {
   ws.send(msg('usage', usage));
   ws.send(msg('media', media.state));
   ws.send(msg('foreground', foreground.state));
+  ws.send(msg('agents', agents.state));
 
   ws.on('message', (data) => {
     let m: ClientMsg;
@@ -203,6 +207,19 @@ foreground.onChange((s) => {
 });
 foreground.start();
 
+// Agenti (AI-1): zmeny hneď, inak najmenej každých 5 s (heartbeat ako pri sketchupe).
+let lastAgentsPush = 0;
+agents.onChange((s) => {
+  lastAgentsPush = Date.now();
+  broadcast(msg('agents', s));
+});
+setInterval(() => {
+  if (Date.now() - lastAgentsPush < AGENTS_PUSH_MS) return;
+  lastAgentsPush = Date.now();
+  broadcast(msg('agents', agents.state));
+}, 1000);
+agents.start();
+
 // ---------- štart ----------
 
 function lanAddresses(): string[] {
@@ -221,6 +238,7 @@ server.on('error', (e: NodeJS.ErrnoException) => {
     log(`port ${cfg.port} už používa iná kópia služby – končím`);
     media.stop();
     foreground.stop();
+    agents.stop();
     process.exit(0);
   }
   log(`server chyba: ${e.message}`);
@@ -240,5 +258,6 @@ server.listen(cfg.port, '0.0.0.0', () => {
 process.on('SIGINT', () => {
   media.stop();
   foreground.stop();
+  agents.stop();
   process.exit(0);
 });

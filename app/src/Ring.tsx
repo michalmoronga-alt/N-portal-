@@ -1,10 +1,12 @@
 // Kruh usage: vonkajší = týždenný limit, voliteľný vnútorný = 5h okno. Percentá = spotrebované.
+import type { ReactNode } from 'react';
+
 interface Props {
   weekly: number | null;
   session?: number | null; // null/undefined = bez vnútorného prstenca (Codex)
-  label: string;
+  label: ReactNode; // text alebo mini logo + text
   sub?: string;
-  size?: 'big' | 'mini';
+  size?: 'big' | 'mini' | 'ai'; // 'ai' = stredná veľkosť pre bočný pás režimu AI
   stale?: boolean;
 }
 
@@ -25,7 +27,7 @@ export default function Ring({ weekly, session, label, sub, size = 'big', stale 
   const hasInner = session !== null && session !== undefined;
   const s = hasInner ? Math.max(0, Math.min(100, session!)) : 0;
   return (
-    <div className={`ring ${size} ${stale ? 'stale' : ''}`}>
+    <div className={`ring ${size} ${stale ? 'stale' : ''} ${!stale && weekly !== null && w >= 100 ? 'full' : ''}`}>
       <svg viewBox="0 0 100 100">
         <circle className="track" cx="50" cy="50" r={R_OUT} strokeWidth={hasInner ? 8 : 9} />
         <circle

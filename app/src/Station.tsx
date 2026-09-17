@@ -4,6 +4,7 @@ import type { MediaState, UsageState } from './service';
 import { useClock, formatDateLong, formatCountdown } from './time';
 import { ledTap } from './ledPulse';
 import VolumeStrip from './VolumeStrip';
+import { ProviderLogo } from './Logos';
 import { IconPrev, IconNext, IconPlay, IconPause } from './MediaIcons';
 
 interface Props {
@@ -65,8 +66,8 @@ export default function Station({ usage, media, online, sendMedia, sendVolume, b
         }}
       >
         <div className="rings">
-          <Ring weekly={usage?.codex.weeklyUsed ?? null} label="Codex" stale={stale} />
-          <Ring weekly={usage?.claude.weeklyUsed ?? null} session={usage?.claude.sessionUsed ?? null} label="Claude" stale={stale} />
+          <Ring weekly={usage?.codex.weeklyUsed ?? null} label={<><ProviderLogo provider="codex" />Codex</>} stale={stale} />
+          <Ring weekly={usage?.claude.weeklyUsed ?? null} session={usage?.claude.sessionUsed ?? null} label={<><ProviderLogo provider="claude" />Claude</>} stale={stale} />
         </div>
         {detail && (
           <div className="dtl">

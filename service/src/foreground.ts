@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export type ForegroundKind = 'sketchup' | 'chrome' | 'other';
+export type ForegroundKind = 'sketchup' | 'chrome' | 'ai' | 'other';
 
 export interface ForegroundState {
   available: boolean; // sonda beží
@@ -21,6 +21,7 @@ const WORKER_EXE = path.resolve(here, '..', 'bin', 'fg-worker.exe');
 export function kindOf(app: string | null): ForegroundKind {
   const a = (app ?? '').toLowerCase();
   if (a === 'sketchup') return 'sketchup';
+  if (a === 'claude' || a === 'codex') return 'ai';
   if (a === 'chrome' || a === 'msedge' || a === 'firefox' || a === 'brave') return 'chrome';
   return 'other';
 }

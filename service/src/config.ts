@@ -34,5 +34,9 @@ export function loadConfig(): Config {
   }
   if (!Number.isInteger(cfg.port) || cfg.port < 1024 || cfg.port > 65535) cfg.port = DEFAULTS.port;
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2) + '\n', 'utf8');
+  // Port z prostredia (NPORTAL_PORT) má prednosť pred config.json, ale do súboru sa nezapisuje:
+  // slúži na dočasný beh druhej kópie (test) popri službe z Plánovača úloh.
+  const envPort = Number(process.env.NPORTAL_PORT);
+  if (Number.isInteger(envPort) && envPort >= 1024 && envPort <= 65535) return { ...cfg, port: envPort };
   return cfg;
 }

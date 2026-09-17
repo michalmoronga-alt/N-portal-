@@ -22,13 +22,13 @@ export default function Settings({ open, onClose, pref, setPref, led, toggleLed,
 
         <label>Režim panela</label>
         <div className="seg" role="tablist">
-          {(['auto', 'station', 'skp'] as Pref[]).map((p) => (
+          {(['auto', 'station', 'skp', 'ai'] as Pref[]).map((p) => (
             <button key={p} role="tab" className={pref === p ? 'on' : ''} onClick={() => setPref(p)}>
-              {p === 'auto' ? 'AUTO' : p === 'station' ? 'Station' : 'SKP'}
+              {p === 'auto' ? 'AUTO' : p === 'station' ? 'Station' : p === 'skp' ? 'SKP' : 'AI'}
             </button>
           ))}
         </div>
-        <p className="note">AUTO prepína podľa aktívneho okna na PC. Rýchle prepnutie: potiahni prstom po hornej lište.</p>
+        <p className="note">AUTO prepína podľa aktívneho okna na PC (SketchUp → SKP, Claude/Codex → AI). Rýchle prepnutie: potiahni prstom po hornej lište.</p>
 
         <label>Spätná väzba zadnými LED</label>
         <div className="seg">

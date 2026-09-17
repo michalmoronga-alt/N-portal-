@@ -33,6 +33,21 @@ export function formatCountdown(epochSec: number, now = Date.now()): string {
   return `o ${h} h ${m} min`;
 }
 
+/** Dĺžka trvania: „12 s“, „4 min“, „2 h 10 min“. */
+export function formatDuration(ms: number): string {
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 60) return `${s} s`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  return `${h} h ${m % 60} min`;
+}
+
+/** „pred 6 s“, „pred 4 min“. */
+export function formatAgo(ms: number): string {
+  return `pred ${formatDuration(ms)}`;
+}
+
 export function formatDateShort(d: Date): string {
   return `${DAYS_SHORT[d.getDay()]} ${d.getDate()}. ${d.getMonth() + 1}.`;
 }

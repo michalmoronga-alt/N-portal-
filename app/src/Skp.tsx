@@ -5,6 +5,7 @@ import { useClock, formatDateDayMonth } from './time';
 import { ledTap, ledError } from './ledPulse';
 import SwipeTile, { type SwipeDir } from './SwipeTile';
 import { IconPrev, IconNext, IconPlay, IconPause } from './MediaIcons';
+import { ProviderLogo } from './Logos';
 
 type Flash = { kind: 'ok' | 'error' | 'warn'; text: string; until: number } | null;
 const REPLY_TIMEOUT_MS = 3000;
@@ -130,8 +131,8 @@ export default function Skp({ online, sketchup, usage, media, lastAck, sendComma
           </div>
         </div>
         <div className="rings">
-          <div className="rw"><Ring size="mini" weekly={usage?.codex.weeklyUsed ?? null} label="" stale={stale} /><div className="name">Codex</div></div>
-          <div className="rw"><Ring size="mini" weekly={usage?.claude.weeklyUsed ?? null} session={usage?.claude.sessionUsed ?? null} label="" stale={stale} /><div className="name">Claude</div></div>
+          <div className="rw"><Ring size="mini" weekly={usage?.codex.weeklyUsed ?? null} label="" stale={stale} /><div className="name"><ProviderLogo provider="codex" />Codex</div></div>
+          <div className="rw"><Ring size="mini" weekly={usage?.claude.weeklyUsed ?? null} session={usage?.claude.sessionUsed ?? null} label="" stale={stale} /><div className="name"><ProviderLogo provider="claude" />Claude</div></div>
         </div>
       </aside>
 
