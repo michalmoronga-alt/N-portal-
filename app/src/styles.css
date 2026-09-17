@@ -63,7 +63,14 @@ html.moving .glass { backdrop-filter: none !important; -webkit-backdrop-filter: 
 .mode { margin-left: auto; font-size: 2.3vh; color: var(--muted); letter-spacing: .08em; white-space: nowrap; }
 .tiny { color: var(--muted); border-radius: 8px; font-size: 2.6vh; width: 6vh; height: 5.4vh; flex: none; }
 
-.main { flex: 1; position: relative; min-height: 0; }
+.main { flex: 1; position: relative; min-height: 0; transition: filter .4s var(--ease), opacity .4s var(--ease); }
+
+/* ---------- výpadok spojenia: celý panel zosivie, hore pruh; návrat farby s prechodom ---------- */
+html.offline .main { filter: grayscale(1); opacity: .62; }
+.bg img { transition: filter .4s var(--ease); }
+html.offline .bg img { filter: grayscale(.85) brightness(.8); }
+.offline-bar { position: absolute; left: 50%; top: calc(6vh + max(8px, env(safe-area-inset-top)) + 1vh); z-index: 5; transform: translate(-50%, -160%); opacity: 0; display: flex; align-items: center; gap: 2vw; padding: 1.1vh 3vw; border-radius: 999px; font-size: 2.8vh; color: #ffb3b2; border-color: rgba(255, 138, 137, .55); white-space: nowrap; pointer-events: none; transition: transform .3s var(--ease), opacity .25s; }
+.offline-bar.show { transform: translate(-50%, 0); opacity: 1; }
 .layer { position: absolute; inset: 0; will-change: transform, opacity; }
 .layer.hidden { visibility: hidden; pointer-events: none; }
 .card { border-radius: var(--r); position: relative; overflow: hidden; }

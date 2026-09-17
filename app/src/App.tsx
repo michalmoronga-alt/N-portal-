@@ -11,10 +11,11 @@ const PREF_KEY = 'nportal.pref';
 const MOTION_KEY = 'nportal.motion';
 const AUTO_DELAY_MS = 400; // ochrana proti preblikávaniu pri rýchlom Alt+Tab
 const SLIDE_MS = 480;
+const OFFLINE_GRACE_MS = 1500; // krátke výpadky (rýchle znovupripojenie) nezosivia panel
 const EASE = 'cubic-bezier(.2,.8,.2,1)';
 
 export default function App() {
-  const { connection, sketchup, usage, media, foreground, lastAck, sendCommand, sendMedia, sendVolume, hasToken } = useService();
+  const { connection, offlineSince, sketchup, usage, media, foreground, lastAck, sendCommand, sendMedia, sendVolume, hasToken } = useService();
   const [pref, setPref] = useState<Pref>(() => {
     try {
       const v = localStorage.getItem(PREF_KEY);
@@ -67,6 +68,33 @@ export default function App() {
 
   const online = connection === 'open';
   const skpReady = online && !!sketchup?.available;
+
+  // celoplošný stav výpadku: po krátkej tolerancii zosivie panel a hore je pruh; späť s prechodom
+  const [offlineShown, setOfflineShown] = useState(false);
+  const [, offlineTick] = useState(0);
+  useEffect(() => {
+    if (online) {
+      setOfflineShown(false);
+      document.documentElement.classList.remove('offline');
+      return;
+    }
+    const t = window.setTimeout(() => {
+      setOfflineShown(true);
+      document.documentElement.classList.add('offline');
+    }, OFFLINE_GRACE_MS);
+    return () => window.clearTimeout(t);
+  }, [online]);
+  useEffect(() => {
+    if (!offlineShown) return;
+    const t = window.setInterval(() => offlineTick((x) => x + 1), 1000);
+    return () => window.clearInterval(t);
+  }, [offlineShown]);
+  const offlineSec = offlineSince ? Math.max(0, Math.round((Date.now() - offlineSince) / 1000)) : 0;
+  const offlineText = !hasToken
+    ? 'Chýba párovací kód'
+    : connection === 'connecting' && offlineSec < 5
+      ? 'Pripájam sa k PC…'
+      : `PC neodpovedá · skúšam znova${offlineSec >= 5 ? ` · ${offlineSec < 90 ? `${offlineSec} s` : `${Math.round(offlineSec / 60)} min`}` : ''}`;
 
   // AUTO: aktívny SketchUp s pripraveným prijímačom → SKP, inak Station. S oneskorením a nie počas dotyku.
   const desiredAuto: Mode = foreground?.kind === 'sketchup' && skpReady ? 'skp' : 'station';
@@ -184,9 +212,14 @@ export default function App() {
         <button className="tiny glass" onClick={() => setSettingsOpen(true)} aria-label="Nastavenia">⚙</button>
       </header>
 
+      <div className={`offline-bar glass ${offlineShown ? 'show' : ''}`} role="status" aria-live="polite">
+        <span className="dot red" />
+        <span>{offlineText}</span>
+      </div>
+
       <main className="main">
         <div ref={stationRef} className={`layer ${shownMode.current === 'station' ? '' : 'hidden'}`}>
-          <Station usage={usage} media={media} sendMedia={sendMedia} sendVolume={sendVolume} bigPlayer={bigPlayer} active={mode === 'station'} />
+          <Station usage={usage} media={media} online={online} sendMedia={sendMedia} sendVolume={sendVolume} bigPlayer={bigPlayer} active={mode === 'station'} />
         </div>
         <div ref={skpRef} className={`layer ${shownMode.current === 'skp' ? '' : 'hidden'}`}>
           <Skp online={online} sketchup={sketchup} usage={usage} media={media} lastAck={lastAck} sendCommand={sendCommand} sendMedia={sendMedia} />

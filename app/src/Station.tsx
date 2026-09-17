@@ -9,13 +9,15 @@ import { IconPrev, IconNext, IconPlay, IconPause } from './MediaIcons';
 interface Props {
   usage: UsageState | null;
   media: MediaState | null;
+  online: boolean; // bez spojenia sú tlačidlá zablokované, obsah ostáva
   sendMedia: (a: 'play' | 'pause' | 'toggle' | 'next' | 'prev') => void;
   sendVolume: (pct: number) => void;
   bigPlayer?: boolean; // pri aktívnom Chrome: väčšia hudobná karta
   active: boolean; // obrazovka je viditeľná (detail sa zatvorí pri odchode)
 }
 
-export default function Station({ usage, media, sendMedia, sendVolume, bigPlayer, active }: Props) {
+export default function Station({ usage, media, online, sendMedia, sendVolume, bigPlayer, active }: Props) {
+  const canPlay = online && !!media?.available;
   const now = useClock();
   const [detail, setDetail] = useState(false);
   const y0 = useRef<number | null>(null);
@@ -90,7 +92,7 @@ export default function Station({ usage, media, sendMedia, sendVolume, bigPlayer
       <section className="card glass music" style={media?.thumb ? { ['--cover' as string]: `url(${media.thumb})` } : undefined}>
         <div className={`cover ${media?.thumb ? 'has' : ''}`} />
         <div className="shade" />
-        <VolumeStrip volume={media?.volume ?? null} onChange={sendVolume} />
+        <VolumeStrip volume={media?.volume ?? null} onChange={online ? sendVolume : () => {}} />
         <div className="meta">
           {media?.available ? (
             <>
@@ -106,11 +108,11 @@ export default function Station({ usage, media, sendMedia, sendVolume, bigPlayer
           )}
         </div>
         <div className="ctrl">
-          <button onClick={() => { ledTap(); sendMedia('prev'); }} aria-label="Predošlá" disabled={!media?.available}><IconPrev /></button>
-          <button className="main" onClick={() => { ledTap(); sendMedia('toggle'); }} aria-label="Prehrať / pauza" disabled={!media?.available}>
+          <button onClick={() => { ledTap(); sendMedia('prev'); }} aria-label="Predošlá" disabled={!canPlay}><IconPrev /></button>
+          <button className="main" onClick={() => { ledTap(); sendMedia('toggle'); }} aria-label="Prehrať / pauza" disabled={!canPlay}>
             {playing ? <IconPause /> : <IconPlay />}
           </button>
-          <button onClick={() => { ledTap(); sendMedia('next'); }} aria-label="Ďalšia" disabled={!media?.available}><IconNext /></button>
+          <button onClick={() => { ledTap(); sendMedia('next'); }} aria-label="Ďalšia" disabled={!canPlay}><IconNext /></button>
         </div>
       </section>
     </div>
