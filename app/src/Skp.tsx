@@ -11,6 +11,8 @@ const REPLY_TIMEOUT_MS = 3000;
 interface Props {
   online: boolean;
   sketchup: SketchUpState | null;
+  /** SketchUp je aktívnym oknom vo Windows: true/false, null = sledovanie okna nebeží (neblokuje sa) */
+  sketchupActive: boolean | null;
   usage: UsageState | null;
   media: MediaState | null;
   lastAck: Ack | null;
@@ -38,7 +40,7 @@ function buildTiles(s: SketchUpState | null): Tile[] {
   ];
 }
 
-export default function Skp({ online, sketchup, usage, media, lastAck, sendCommand, sendMedia }: Props) {
+export default function Skp({ online, sketchup, sketchupActive, usage, media, lastAck, sendCommand, sendMedia }: Props) {
   const now = useClock();
   const [flash, setFlash] = useState<Flash>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -90,12 +92,17 @@ export default function Skp({ online, sketchup, usage, media, lastAck, sendComma
   }, [tick, pendingId]);
 
   const ready = online && !!sketchup?.available;
+  // Povely majú zmysel len keď je SketchUp naozaj v popredí. Blokujeme iba vtedy, keď sledovanie
+  // okna preukázateľne beží a hlási inú aplikáciu; pri jeho výpadku (null) sa nič nemení.
+  const passive = ready && sketchupActive === false;
+  const usable = ready && !passive;
   const activeFlash = flash && flash.until > tick ? flash : null;
 
   const press = (action: string) => {
-    if (!ready) {
+    if (!usable) {
       ledError();
-      setFlash({ kind: 'warn', text: online ? 'SketchUp je nedostupný.' : 'Nie je spojenie so službou na PC.', until: Date.now() + 2500 });
+      const text = !online ? 'Nie je spojenie so službou na PC.' : !ready ? 'SketchUp je nedostupný.' : 'SketchUp nie je aktívne okno';
+      setFlash({ kind: 'warn', text, until: Date.now() + 2500 });
       return;
     }
     if (pendingId) return;
@@ -122,7 +129,7 @@ export default function Skp({ online, sketchup, usage, media, lastAck, sendComma
             if (!t.enabled) cls += ' off';
             else if (mine && activeFlash) cls += ` ${activeFlash.kind}`;
             else if (mine && pendingId) cls += ' sent';
-            else if (!ready) cls += ' idle';
+            else if (!usable) cls += ' idle';
             if (t.primary) cls += ' primary';
             if (t.action === 'isolate_toggle' && sketchup?.isolationActive && !activeFlash) cls += ' active';
             if (t.action === 'xray_toggle' && sketchup?.xrayOn && !activeFlash) cls += ' active';
@@ -135,7 +142,14 @@ export default function Skp({ online, sketchup, usage, media, lastAck, sendComma
             );
             if (t.swipe) {
               return (
-                <SwipeTile key={t.action} className={cls} disabled={!t.enabled} onSwipe={(d) => press(SWIPE_ACTION[d])}>
+                <SwipeTile
+                  key={t.action}
+                  className={cls}
+                  disabled={!t.enabled}
+                  blocked={!usable}
+                  onSwipe={(d) => press(SWIPE_ACTION[d])}
+                  onTap={!usable ? () => press(t.action) : undefined}
+                >
                   {body}
                 </SwipeTile>
               );

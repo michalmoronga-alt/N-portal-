@@ -33,5 +33,15 @@ export default defineConfig({
       },
     }),
   ],
-  server: { host: true, port: 5173 },
+  // Vývojový server (npm run dev, port 5173) preposiela stav aj povely bežiacej službe na 8790,
+  // takže sa dá testovať s reálnymi dátami bez zásahu do produkčnej služby.
+  // Otvoriť: http://localhost:5173/?t=<token z ~/.n-portal/service/config.json>
+  server: {
+    host: true,
+    port: 5173,
+    proxy: {
+      '/ws': { target: 'ws://localhost:8790', ws: true },
+      '/api': { target: 'http://localhost:8790' },
+    },
+  },
 });

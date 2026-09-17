@@ -83,6 +83,9 @@ export default function App() {
 
   const online = connection === 'open';
   const skpReady = online && !!sketchup?.available;
+  // Je SketchUp aktívnym oknom vo Windows? true = áno, false = v popredí je iná aplikácia,
+  // null = sledovanie okna nebeží (vtedy sa podľa aktívneho okna nič neblokuje).
+  const sketchupActive: boolean | null = foreground?.available ? foreground.kind === 'sketchup' : null;
 
   // celoplošný stav výpadku: po krátkej tolerancii zosivie panel a hore je pruh; späť s prechodom
   const [offlineShown, setOfflineShown] = useState(false);
@@ -263,7 +266,9 @@ export default function App() {
   else if (!sketchup?.available) headline = 'SketchUp: nedostupný';
   else {
     const extra = sketchup.instances.length > 1 ? ` (${sketchup.instances.length} relácie)` : '';
-    headline = `SketchUp: ${sketchup.model ?? '?'} · výber: ${sketchup.selectionCount ?? '?'}${extra}`;
+    // dostupný, ale v popredí je iná aplikácia – povely v SKP sú zablokované
+    const passive = sketchupActive === false ? ' · nie je aktívne okno' : '';
+    headline = `SketchUp: ${sketchup.model ?? '?'} · výber: ${sketchup.selectionCount ?? '?'}${extra}${passive}`;
   }
   const modeName = mode === 'skp' ? 'SKP' : mode === 'ai' ? 'AI' : 'Station';
   const modeLabel = pref === 'auto' ? `AUTO · ${modeName}` : modeName;
@@ -310,7 +315,7 @@ export default function App() {
           <Station usage={usage} media={media} online={online} sendMedia={sendMedia} sendVolume={sendVolume} bigPlayer={bigPlayer} active={mode === 'station'} />
         </div>
         <div ref={skpRef} className={`layer ${shownMode.current === 'skp' ? '' : 'hidden'}`}>
-          <Skp online={online} sketchup={sketchup} usage={usage} media={media} lastAck={lastAck} sendCommand={sendCommand} sendMedia={sendMedia} />
+          <Skp online={online} sketchup={sketchup} sketchupActive={sketchupActive} usage={usage} media={media} lastAck={lastAck} sendCommand={sendCommand} sendMedia={sendMedia} />
         </div>
         <div ref={aiRef} className={`layer ${shownMode.current === 'ai' ? '' : 'hidden'}`}>
           <Ai agents={agents} usage={usage} media={media} sendMedia={sendMedia} />
