@@ -42,6 +42,7 @@
   /* body: vrstva nad kruhom, každý bod = absolútne umiestnený, posúvaný JS len cez transform */
   .orbit{position:absolute;inset:0;pointer-events:none}
   .orbit i{position:absolute;left:50%;top:50%;width:1px;height:1px;border-radius:50%;background:var(--c);box-shadow:0 0 6px var(--c),0 0 12px var(--c);transform:translate(-50%,-50%) scale(0);will-change:transform}
+  .orbit i.g{box-shadow:0 0 4px var(--c);filter:blur(.6px)} /* chvost: stopy za bodom, slabnúce */
 
   .ctl{position:fixed;right:10px;bottom:10px;z-index:9;display:flex;gap:6px;padding:6px;border-radius:14px;flex-wrap:wrap;max-width:70vw;justify-content:flex-end;align-items:center}
   .ctl button{font:inherit;font-size:1.9vh;color:var(--muted);background:transparent;border:1px solid var(--edge);border-radius:999px;padding:.5vh 1.4vw}
@@ -81,15 +82,14 @@
   </section>
 </div>
 
-<div class="note">Body obiehajú po dráhe vonkajšieho kruhu. Vznikajú hore (z veľkosti 0), po obehu sa hore zmenšia a zmiznú, mierne pulzujú. <b>Pracuje</b>: každý bod má stálu vlastnú rýchlosť. <b>Čaká</b>: body občas plynulo zmenia smer a rýchlosť + jemná fialová žiara kruhu. <b>Hotovo</b>: zelené body dobehnú a už sa neobnovia.</div>
+<div class="note">Body (náhodne 2–4) obiehajú po dráhe vonkajšieho kruhu a nechávajú za sebou krátky chvost. Vznikajú hore (z veľkosti 0), po obehu sa hore zmenšia a zmiznú, mierne pulzujú. <b>Pracuje</b>: každý bod má stálu vlastnú rýchlosť. <b>Čaká</b>: body občas plynulo zmenia smer a rýchlosť + jemná fialová žiara kruhu. <b>Hotovo</b>: zelené body dobehnú a už sa neobnovia.</div>
 
 <div class="ctl glass" id="ctl">
   <span class="lbl">Claude:</span>
   <button data-p="claude" data-s="busy" class="on">pracuje</button><button data-p="claude" data-s="waiting">čaká</button><button data-p="claude" data-s="done">hotovo</button><button data-p="claude" data-s="none">nič</button>
   <span class="lbl">Codex:</span>
   <button data-p="codex" data-s="busy">pracuje</button><button data-p="codex" data-s="waiting">čaká</button><button data-p="codex" data-s="done">hotovo</button><button data-p="codex" data-s="none" class="on">nič</button>
-  <span class="lbl">Bodov:</span>
-  <button data-n="2" class="on">2</button><button data-n="3">3</button>
+  <span class="lbl">Bodov: náhodne 2–4</span>
   <button id="motion">obmedziť pohyb</button>
 </div>
 
@@ -97,23 +97,24 @@
 // ---------- model bodov ----------
 // Každý kruh má vlastný "roj". Bod: uhol (deg, 0 = hore), rýchlosť (deg/s, znamienko = smer),
 // fáza života: grow → run → shrink → dead (→ po pauze nový bod, ak stav dovolí).
-const state = { claude: 'busy', codex: 'none', n: 2, reduce: false };
+const state = { claude: 'busy', codex: 'none', reduce: false };
 const COLORS = { busy: 'var(--busyDot)', waiting: 'var(--waitDot)', done: 'var(--doneDot)' };
 const rand = (a, b) => a + Math.random() * (b - a);
 
 class Swarm {
   constructor(el, provider) {
     this.el = el; this.provider = provider; this.layer = el.querySelector('.orbit');
-    this.dots = []; this.status = 'none'; this.mini = el.classList.contains('mini');
+    this.dots = []; this.status = 'none'; this.mini = el.classList.contains('mini'); this.want = 2 + Math.floor(Math.random() * 3); // náhodne 2–4
   }
-  set(status, n) {
+  set(status) {
+    const n = this.want;
     const changed = status !== this.status;
     this.status = status;
     this.el.classList.toggle('glow', status === 'waiting');
     if (status === 'none') { this.dots.forEach(d => d.phase = 'shrink'); return; }
-    if (changed) this.dots.forEach(d => { d.status = status; d.node.style.setProperty('--c', COLORS[status]); d.retarget(); });
+    if (changed) this.dots.forEach(d => { d.status = status; d.node.style.setProperty('--c', COLORS[status]); d.ghosts.forEach(g => g.style.setProperty('--c', COLORS[status])); d.retarget(); });
     while (this.dots.length < n) this.spawn(this.dots.length * 0.9);
-    while (this.dots.length > n) this.dots.pop().node.remove();
+    while (this.dots.length > n) { const d = this.dots.pop(); d.node.remove(); d.ghosts.forEach(g => g.remove()); }
   }
   spawn(delay = 0) {
     const node = document.createElement('i'); this.layer.appendChild(node);
@@ -121,13 +122,14 @@ class Swarm {
   }
   tick(dt, t) {
     const R = this.el.clientWidth / 2 * 0.88; // polomer vonkajšej dráhy (r=44 zo 50)
-    const base = this.el.clientWidth * (this.mini ? 0.055 : 0.032); // priemer bodu
+    const base = this.el.clientWidth * (this.mini ? 0.075 : 0.042); // priemer bodu (zväčšené)
     for (let i = this.dots.length - 1; i >= 0; i--) {
       const d = this.dots[i];
       d.tick(dt, t, R, base, state.reduce);
       if (d.phase === 'dead') {
-        d.node.remove(); this.dots.splice(i, 1);
-        if (this.status === 'busy' || this.status === 'waiting') this.spawn(rand(0.3, 1.5)); // obnova; „hotovo“ sa neobnovuje
+        d.node.remove(); d.ghosts.forEach(g => g.remove()); this.dots.splice(i, 1);
+        if (this.status === 'busy' || this.status === 'waiting') { this.want = 2 + Math.floor(Math.random() * 3); // počet sa priebežne mení 2–4
+          while (this.dots.length < this.want) this.spawn(rand(0.3, 1.5)); } // obnova; „hotovo“ sa neobnovuje
       }
     }
   }
@@ -136,6 +138,8 @@ class Swarm {
 class Dot {
   constructor(node, status) {
     this.node = node; this.status = status; node.style.setProperty('--c', COLORS[status] || COLORS.busy);
+    // chvost: 4 stopy za bodom, každá o kúsok späť po dráhe, menšia a priehľadnejšia
+    this.ghosts = [0, 1, 2, 3].map(() => { const g = document.createElement('i'); g.className = 'g'; g.style.setProperty('--c', node.style.getPropertyValue('--c')); node.parentNode.insertBefore(g, node); return g; });
     this.angle = 0; this.travel = 0; this.phase = 'grow'; this.delay = 0; this.size = 0;
     this.pulseW = rand(1.2, 2.2); this.pulseA = rand(0.08, 0.16); this.pulsePh = rand(0, 6.28);
     this.speed = 0; this.target = 0; this.next = 0; this.life = 0; this.retarget();
@@ -175,11 +179,19 @@ class Dot {
     const a = (this.angle - 90) * Math.PI / 180;
     const x = Math.cos(a) * R, y = Math.sin(a) * R;
     this.node.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(${(base * this.size * pulse).toFixed(2)})`;
+    // chvost: stopy o 0,04 s späť po dráhe (dĺžka rastie s rýchlosťou, pri otočení sa preklopí)
+    const lag = reduce ? 0 : this.speed * 0.045;
+    this.ghosts.forEach((g, k) => {
+      const ga = (this.angle - lag * (k + 1) - 90) * Math.PI / 180;
+      const gs = base * this.size * (0.8 - k * 0.16);
+      g.style.opacity = (0.55 - k * 0.12).toFixed(2);
+      g.style.transform = `translate(calc(-50% + ${(Math.cos(ga) * R).toFixed(1)}px), calc(-50% + ${(Math.sin(ga) * R).toFixed(1)}px)) scale(${gs.toFixed(2)})`;
+    });
   }
 }
 
 const swarms = [...document.querySelectorAll('[data-ring]')].map(el => new Swarm(el, el.dataset.ring.split('-')[0]));
-function apply() { swarms.forEach(s => s.set(state[s.provider], state.n)); }
+function apply() { swarms.forEach(s => s.set(state[s.provider])); }
 apply();
 let last = performance.now();
 function frame(now) {
@@ -195,9 +207,6 @@ ctl.querySelectorAll('button[data-s]').forEach(b => b.onclick = () => {
   state[b.dataset.p] = b.dataset.s;
   ctl.querySelectorAll(`button[data-p="${b.dataset.p}"]`).forEach(x => x.classList.toggle('on', x === b));
   apply();
-});
-ctl.querySelectorAll('button[data-n]').forEach(b => b.onclick = () => {
-  state.n = +b.dataset.n; ctl.querySelectorAll('button[data-n]').forEach(x => x.classList.toggle('on', x === b)); apply();
 });
 document.getElementById('motion').onclick = (e) => { state.reduce = !state.reduce; e.target.classList.toggle('on', state.reduce); };
 </script>
