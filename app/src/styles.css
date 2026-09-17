@@ -306,8 +306,9 @@ html.reduce .badge, html.reduce .chip.busy i { animation: none !important; }
 .panel .ft b { color: var(--text); font-weight: 600; }
 
 /* toast „agent skončil / čaká“ – spoločný pre Station aj SKP, farebnosť ako čip */
-.agent-toast { display: flex; align-items: center; gap: 1vw; z-index: 6; }
-.agent-toast .logo { font-size: 3vh; }
+.agent-toast { display: flex; align-items: center; gap: 1.2vw; z-index: 6; /* upozornenie o agentovi: vždy zhora, väčšie než toast povelu */ top: 1vh; bottom: auto; transform: translate(-50%, -160%); font-size: 3.4vh; font-weight: 600; padding: 1.5vh 3vw; }
+.agent-toast.show { transform: translate(-50%, 0); }
+.agent-toast .logo { font-size: 4vh; }
 .agent-toast span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agent-toast.done { color: var(--done-txt); border-color: rgba(111, 214, 154, .8); background: linear-gradient(135deg, var(--done1), var(--done2)) !important; }
 .agent-toast.waiting { color: var(--wait-txt); border-color: rgba(154, 120, 255, .8); background: linear-gradient(135deg, var(--wait1), var(--wait2)) !important; }
