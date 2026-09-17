@@ -25,7 +25,7 @@ Mobil nie je monitor Windows (žiadny spacedesk), preto dotyk nikdy neukradne ku
 | **AI** | Pri aktívnom Claude alebo Codex: bočný pás ako v SKP a karta „Agenti“ so živým stavom relácií Claude Code a Codexu (pracuje / čaká na teba / hotovo / nečinný), súhrn dňa; upozornenie štítkom, toastom a LED vo všetkých režimoch. Špecifikácia: [docs/AI-REZIM.md](docs/AI-REZIM.md). |
 | **AUTO** | Aktívny SketchUp na PC → SKP, iná aplikácia → Station, Chrome → väčší prehrávač. Pri dvoch otvorených SketchUpoch idú povely do toho, v ktorom si naposledy klikol. |
 
-Ďalšie: pri výpadku spojenia celý panel zosivie s pruhom „PC neodpovedá“ a sám sa pripojí späť (aj po spánku telefónu či výpadku Wi‑Fi), spätná väzba zadnými LED telefónu (nepočuteľný tón cez prehrávač), automatický štart služby po prihlásení do Windows, nastavenia pod ozubeným kolieskom (režim, LED, animácie, celá obrazovka), rýchle prepnutie potiahnutím po hornej lište.
+Ďalšie: kruhy usage ukazujú aktivitu agentov obiehajúcimi bodmi (modré pracuje, fialové čaká na teba, zelené hotovo), v ručnom SKP sú povely zablokované, keď SketchUp nie je aktívne okno, pri výpadku spojenia celý panel zosivie s pruhom „PC neodpovedá“ a sám sa pripojí späť (aj po spánku telefónu či výpadku Wi‑Fi), spätná väzba zadnými LED telefónu (nepočuteľný tón cez prehrávač), automatický štart služby po prihlásení do Windows, nastavenia pod ozubeným kolieskom (režim, LED, animácie, celá obrazovka), rýchle prepnutie potiahnutím po hornej lište.
 
 **Mimo V1 (rozhodnuté):** tagy, kontext výberu z NOXUN Engine (po jeho dokončení), USB spojenie. Odložené: priebeh skladby, gestá na obale, preusporiadanie dlaždíc.
 
