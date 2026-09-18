@@ -95,7 +95,8 @@ export interface MediaState {
   title: string | null;
   artist: string | null;
   album: string | null;
-  thumb: string | null;
+  thumb: string | null; // obrázok z Windows (z Chrome len 150 × 83 px)
+  art: string | null; // väčší obrázok z YouTube (`/art/<id>.jpg`), null = použi `thumb`
   volume: number | null;
   muted: boolean;
   position: number | null; // ms od začiatku skladby v čase `positionAt`; null = prehrávač pozíciu nehlási
@@ -437,6 +438,7 @@ function demoMedia(withDuration = true): MediaState {
     artist: t.artist,
     album: null,
     thumb: null,
+    art: null,
     volume: 42,
     muted: false,
     position: 0,

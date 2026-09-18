@@ -172,6 +172,9 @@ html.reduce .ring.glow::before { animation: none !important; box-shadow: 0 0 18p
 /* obal je mierne zväčšený, aby sa pri ohlase ťahu neodhalil okraj karty */
 .music .cover { position: absolute; inset: 0; z-index: -2; background: linear-gradient(135deg, #2a3440, #161a1f); transform: scale(1.08); transition: opacity .6s, transform .22s var(--ease), filter .18s; }
 .music .cover.has { background: var(--cover) center / cover no-repeat; filter: saturate(1.05); }
+/* horná vrstva obalu: nový (väčší) obrázok sa prelínie cez starý, nič medzitým neblikne */
+.music .cover.top { animation: cover-in .45s ease-out forwards; }
+@keyframes cover-in { from { opacity: 0; } to { opacity: 1; } }
 .music .cover.nudge-left { transform: scale(1.08) translateX(-6%); }
 .music .cover.nudge-right { transform: scale(1.08) translateX(6%); }
 .music .cover.tap { filter: brightness(.78); }

@@ -27,6 +27,7 @@ interface Props {
 const TAP_PX = 36; // kratší pohyb než ťah (rovnaká hranica ako v swipe.ts) = klepnutie
 const NUDGE_MS = 260; // ohlas ťahu na obale
 const TAP_MS = 180; // ohlas klepnutia na obale
+const COVER_FADE_MS = 450; // prelínanie obalu (musí sedieť s animáciou `cover-in` v styles.css)
 
 export default function Station({ usage, media, agents, online, sendMedia, sendVolume, sendSeek, bigPlayer, active }: Props) {
   const canPlay = online && !!media?.available;
@@ -51,6 +52,35 @@ export default function Station({ usage, media, agents, online, sendMedia, sendV
     const t = window.setTimeout(() => setCoverTap(false), TAP_MS);
     return () => window.clearTimeout(t);
   }, [coverTap]);
+
+  // Obal skladby: `art` je väčší obrázok z YouTube (cez Chrome rozšírenie), inak platí `thumb`
+  // z Windows. Nový obrázok najprv načítame a až potom ho prelínieme cez starý (dve vrstvy),
+  // aby pri prechode z malého na veľký obal nebliklo prázdno.
+  const wantCover = media?.art ?? media?.thumb ?? null;
+  const [baseCover, setBaseCover] = useState<string | null>(null); // spodná vrstva (už zobrazená)
+  const [loadedCover, setLoadedCover] = useState<string | null>(null); // načítaný nový obrázok
+  const showBase = wantCover ? baseCover : null;
+  const showFade = wantCover && loadedCover === wantCover && loadedCover !== baseCover ? loadedCover : null;
+  useEffect(() => {
+    if (!wantCover || wantCover === baseCover) return;
+    let dead = false;
+    const img = new Image();
+    img.onload = () => {
+      if (!dead) setLoadedCover(wantCover);
+    };
+    img.onerror = () => {
+      /* obrázok sa nenačítal (napr. služba ho už nemá) – necháme predošlý obal */
+    };
+    img.src = wantCover;
+    return () => {
+      dead = true;
+    };
+  }, [wantCover, baseCover]);
+  useEffect(() => {
+    if (!showFade) return;
+    const t = window.setTimeout(() => setBaseCover(showFade), COVER_FADE_MS);
+    return () => window.clearTimeout(t);
+  }, [showFade]);
 
   const hh = String(now.getHours()).padStart(2, '0');
   const mm = String(now.getMinutes()).padStart(2, '0');
@@ -117,8 +147,18 @@ export default function Station({ usage, media, agents, online, sendMedia, sendV
         {!detail && <div className="hint">{stale ? (usage?.available ? 'Usage dáta sú zastarané' : 'Usage dáta nedostupné') : '▲ potiahni hore: detail'}</div>}
       </section>
 
-      <section className="card glass music" style={media?.thumb ? { ['--cover' as string]: `url(${media.thumb})` } : undefined}>
-        <div className={`cover ${media?.thumb ? 'has' : ''} ${nudge ? `nudge-${nudge}` : ''} ${coverTap ? 'tap' : ''}`} />
+      <section className="card glass music">
+        <div
+          className={`cover ${showBase ? 'has' : ''} ${nudge ? `nudge-${nudge}` : ''} ${coverTap ? 'tap' : ''}`}
+          style={showBase ? { ['--cover' as string]: `url(${showBase})` } : undefined}
+        />
+        {showFade && (
+          <div
+            key={showFade}
+            className={`cover top has ${nudge ? `nudge-${nudge}` : ''} ${coverTap ? 'tap' : ''}`}
+            style={{ ['--cover' as string]: `url(${showFade})` }}
+          />
+        )}
         <div className="shade" />
         <VolumeStrip volume={media?.volume ?? null} onChange={online ? sendVolume : () => {}} />
         <div

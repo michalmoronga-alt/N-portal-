@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "N-portal YouTube artwork",
+  "version": "1.0",
+  "description": "Hlási lokálnej N-portal službe, ktoré YouTube video práve hrá, aby panel ukázal obal skladby vo vysokom rozlíšení.",
+  "host_permissions": [
+    "*://www.youtube.com/*",
+    "*://music.youtube.com/*",
+    "http://localhost:8790/*",
+    "http://127.0.0.1:8790/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://www.youtube.com/*", "*://music.youtube.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

@@ -15,7 +15,8 @@ export interface MediaState {
   title: string | null;
   artist: string | null;
   album: string | null;
-  thumb: string | null; // data URL obrázka skladby
+  thumb: string | null; // data URL obrázka skladby (z Chrome len 150 × 83 px)
+  art: string | null; // cesta k väčšiemu obrázku (`/art/<id>.jpg`) – dopĺňa artwork.ts pri odosielaní; null = použi `thumb`
   volume: number | null; // hlasitosť PC 0–100 (hlavný výstup)
   muted: boolean;
   position: number | null; // ms od začiatku skladby v čase `positionAt`; null = prehrávač nehlási
@@ -37,7 +38,7 @@ type Listener = (s: MediaState) => void;
 
 export class MediaBridge {
   state: MediaState = {
-    available: false, workerOk: false, app: null, status: null, title: null, artist: null, album: null, thumb: null,
+    available: false, workerOk: false, app: null, status: null, title: null, artist: null, album: null, thumb: null, art: null,
     volume: null, muted: false, position: null, duration: null, positionAt: null, rate: 1, canSeek: false,
   };
   private proc: ChildProcess | null = null;

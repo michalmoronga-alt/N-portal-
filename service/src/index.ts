@@ -10,11 +10,12 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { loadConfig, SERVICE_DIR } from './config.js';
 import { readInstances, buildState, sendCommand, ALLOWED_ACTIONS, type SketchUpState } from './sketchup.js';
 import { readUsage, USAGE_FILE, type UsageState } from './usage.js';
-import { MediaBridge, MEDIA_ACTIONS } from './media.js';
+import { MediaBridge, MEDIA_ACTIONS, type MediaState } from './media.js';
+import { ArtworkBridge } from './artwork.js';
 import { ForegroundBridge } from './foreground.js';
 import { AgentsBridge } from './agents.js';
 
-const VERSION = '0.7.0';
+const VERSION = '0.7.1';
 const SKETCHUP_POLL_MS = 250;
 const USAGE_POLL_MS = 5000;
 const HEARTBEAT_PUSH_MS = 2000;
@@ -47,6 +48,7 @@ function log(msg: string) {
 // ---------- stav po témach ----------
 
 const media = new MediaBridge(log);
+const artwork = new ArtworkBridge(log);
 const foreground = new ForegroundBridge(log);
 const agents = new AgentsBridge(log);
 let lastSketchupFgPid: number | null = null; // relácia SketchUpu, ktorej okno bolo naposledy v popredí
@@ -60,6 +62,15 @@ function broadcast(payload: string) {
 }
 const msg = (type: string, data: unknown) => JSON.stringify({ type, ts: Date.now(), data });
 
+// Stav hudby pre PWA: k údajom z Windows dopĺňa `art` – cestu k väčšiemu obrázku z YouTube,
+// keď je pre práve hranú skladbu k dispozícii (inak null a platí pôvodný `thumb`).
+let lastArt: string | null = null;
+function mediaPayload(): MediaState {
+  const art = artwork.artFor(media.state);
+  lastArt = art;
+  return { ...media.state, art };
+}
+
 // ---------- HTTP ----------
 
 const server = http.createServer((req, res) => {
@@ -71,11 +82,15 @@ const server = http.createServer((req, res) => {
       JSON.stringify({
         ok: true, version: VERSION, time: Date.now(),
         sketchup, usage, foreground: foreground.state, agents: agents.state,
-        media: { ...media.state, thumb: media.state.thumb ? '(obrázok)' : null },
+        media: { ...mediaPayload(), thumb: media.state.thumb ? '(obrázok)' : null },
+        artwork: artwork.health(),
       }),
     );
     return;
   }
+
+  // hlásenia z Chrome rozšírenia (/api/artwork) a obrázky skladieb (/art/<id>.jpg)
+  if (artwork.handleRequest(req, res, url)) return;
 
   // statická PWA (bez tokenu – samotná aplikácia nie je tajomstvo, dáta idú cez WS)
   let rel = decodeURIComponent(url.pathname);
@@ -119,7 +134,7 @@ wss.on('connection', (ws, req) => {
   log(`PWA pripojená z ${req.socket.remoteAddress}`);
   ws.send(msg('sketchup', sketchup));
   ws.send(msg('usage', usage));
-  ws.send(msg('media', media.state));
+  ws.send(msg('media', mediaPayload()));
   ws.send(msg('foreground', foreground.state));
   ws.send(msg('agents', agents.state));
 
@@ -198,8 +213,14 @@ setInterval(() => {
   }
 }, USAGE_POLL_MS);
 
-media.onChange((s) => broadcast(msg('media', s)));
+media.onChange(() => broadcast(msg('media', mediaPayload())));
 media.start();
+
+// Hlásenia z Chrome rozšírenia a dosťahované obrázky: stav pošleme, len keď sa `art` naozaj zmení.
+artwork.onChange(() => {
+  if (artwork.artFor(media.state) !== lastArt) broadcast(msg('media', mediaPayload()));
+});
+artwork.start();
 
 foreground.onChange((s) => {
   if (s.kind === 'sketchup' && s.pid && s.pid !== lastSketchupFgPid) {

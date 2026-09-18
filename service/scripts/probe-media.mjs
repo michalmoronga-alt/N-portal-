@@ -42,7 +42,7 @@ ws.on('message', (raw) => {
   console.log(
     `#${String(seen).padStart(2)} ${gap.padStart(9)} ${String(d.status ?? '–').padEnd(7)} ` +
       `pos=${t(d.position).padStart(7)} / dur=${t(d.duration).padStart(7)} rate=${d.rate} canSeek=${d.canSeek} ` +
-      `thumb=${d.thumb ? 'áno' : 'nie'} · ${d.title ?? '(bez názvu)'}`
+      `thumb=${d.thumb ? 'áno' : 'nie'} art=${d.art ?? 'nie'} · ${d.title ?? '(bez názvu)'}`
   );
   if (seekMs !== null && !seekSent && seen >= 3) {
     seekSent = true;
