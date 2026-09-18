@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { useService } from './service';
 import type { AgentStatus } from './service';
 import Station, { appName } from './Station';
@@ -8,6 +8,7 @@ import Settings from './Settings';
 import { ProviderLogo } from './Logos';
 import { formatDuration } from './time';
 import { ledEnabled, setLedEnabled, ledTap, ledLong } from './ledPulse';
+import { toggleFullscreen } from './fullscreen';
 
 type Mode = 'station' | 'skp' | 'ai';
 export type Pref = 'auto' | Mode;
@@ -18,6 +19,9 @@ const AUTO_DELAY_MS = 400; // ochrana proti preblikávaniu pri rýchlom Alt+Tab
 const SLIDE_MS = 480;
 const OFFLINE_GRACE_MS = 1500; // krátke výpadky (rýchle znovupripojenie) nezosivia panel
 const TOAST_MS = 6000; // toast „agent skončil“ v Station/SKP
+const BAR_SWIPE_PX = 50; // ťah po páse = prepnutie režimu
+const DOUBLE_TAP_MS = 350; // dve klepnutia do tohto času = celá obrazovka
+const TAP_MOVE_PX = 10; // väčší pohyb už nie je klepnutie
 const EASE = 'cubic-bezier(.2,.8,.2,1)';
 
 /** Upozornenie o agentovi v hornom páse (prechod pracuje → čaká / hotovo). */
@@ -30,7 +34,7 @@ interface Notice {
 }
 
 export default function App() {
-  const { connection, offlineSince, sketchup, usage, media, foreground, agents, lastAck, sendCommand, sendMedia, sendVolume, sendSeek, hasToken } = useService();
+  const { connection, offlineSince, sketchup, usage, media, foreground, agents, audio, lastAck, sendCommand, sendMedia, sendVolume, sendSeek, hasToken } = useService();
   const [pref, setPref] = useState<Pref>(() => {
     try {
       const v = localStorage.getItem(PREF_KEY);
@@ -249,10 +253,37 @@ export default function App() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // rýchle ručné prepnutie: potiahnutie po hornej lište (doľava = ďalší režim, doprava = predošlý)
-  const barSwipe = useRef<number | null>(null);
+  const barSwipe = useRef<{ x: number; y: number } | null>(null);
+  const barLastTap = useRef(0); // kedy bolo predošlé klepnutie po páse (dvojklik = celá obrazovka)
   const stepMode = (delta: number) => {
     const i = ORDER.indexOf(mode);
     setPref(ORDER[(i + delta + ORDER.length) % ORDER.length]);
+  };
+
+  // Dvojklik na horný pás prepne celú obrazovku. Ťah po páse (prepnutie režimu) má prednosť:
+  // dvojklik sa počíta len vtedy, keď ani jedno z klepnutí nebolo ťah. Tlačidlá v páse (⚙, štítok)
+  // majú vlastné správanie, tie sa do dvojkliku nerátajú.
+  const barPointerUp = (e: ReactPointerEvent<HTMLElement>) => {
+    const st = barSwipe.current;
+    barSwipe.current = null;
+    if (!st) return;
+    const dx = e.clientX - st.x;
+    if (dx > BAR_SWIPE_PX || dx < -BAR_SWIPE_PX) {
+      barLastTap.current = 0;
+      stepMode(dx > 0 ? -1 : 1);
+      return;
+    }
+    const onButton = !!(e.target as HTMLElement | null)?.closest?.('button');
+    if (onButton || Math.abs(dx) > TAP_MOVE_PX || Math.abs(e.clientY - st.y) > TAP_MOVE_PX) {
+      barLastTap.current = 0; // pohyb medzi klepnutím a ťahom (alebo tlačidlo) dvojklik ruší
+      return;
+    }
+    const now = Date.now();
+    if (now - barLastTap.current < DOUBLE_TAP_MS) {
+      barLastTap.current = 0;
+      ledTap();
+      toggleFullscreen();
+    } else barLastTap.current = now;
   };
 
   const fgLabel = foreground?.available && foreground.app ? cap(appName(foreground.app)) : null;
@@ -279,13 +310,11 @@ export default function App() {
 
       <header
         className="bar"
-        onPointerDown={(e) => (barSwipe.current = e.clientX)}
-        onPointerUp={(e) => {
-          if (barSwipe.current === null) return;
-          const dx = e.clientX - barSwipe.current;
+        onPointerDown={(e) => (barSwipe.current = { x: e.clientX, y: e.clientY })}
+        onPointerUp={barPointerUp}
+        onPointerCancel={() => {
           barSwipe.current = null;
-          if (dx > 50) stepMode(-1);
-          else if (dx < -50) stepMode(1);
+          barLastTap.current = 0;
         }}
       >
         <span className={`dot ${!online ? 'red' : skpReady ? 'green' : 'grey'}`} />
@@ -312,7 +341,7 @@ export default function App() {
 
       <main className="main">
         <div ref={stationRef} className={`layer ${shownMode.current === 'station' ? '' : 'hidden'}`}>
-          <Station usage={usage} media={media} agents={agents} online={online} sendMedia={sendMedia} sendVolume={sendVolume} sendSeek={sendSeek} bigPlayer={bigPlayer} active={mode === 'station'} />
+          <Station usage={usage} media={media} agents={agents} audio={audio} online={online} sendMedia={sendMedia} sendVolume={sendVolume} sendSeek={sendSeek} bigPlayer={bigPlayer} active={mode === 'station'} />
         </div>
         <div ref={skpRef} className={`layer ${shownMode.current === 'skp' ? '' : 'hidden'}`}>
           <Skp online={online} sketchup={sketchup} sketchupActive={sketchupActive} usage={usage} media={media} agents={agents} lastAck={lastAck} sendCommand={sendCommand} sendMedia={sendMedia} active={mode === 'skp'} />

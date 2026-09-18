@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import Ring from './Ring';
+import Equalizer from './Equalizer';
+import type { AudioLevel } from './audioLevel';
 import type { AgentsState, MediaState, UsageState } from './service';
 import { providerActivity } from './ringActivity';
 import { useClock, formatDateLong, formatCountdown } from './time';
@@ -15,6 +17,8 @@ interface Props {
   media: MediaState | null;
   /** stav agentov pre obiehajúce body na kruhoch (null = bez spojenia → žiadne body) */
   agents: AgentsState | null;
+  /** živá úroveň zvuku z PC pre equalizer (zámerne mimo React stavu, chodí 20× za s) */
+  audio: RefObject<AudioLevel>;
   online: boolean; // bez spojenia sú tlačidlá zablokované, obsah ostáva
   sendMedia: (a: 'play' | 'pause' | 'toggle' | 'next' | 'prev') => void;
   sendVolume: (pct: number) => void;
@@ -29,7 +33,7 @@ const NUDGE_MS = 260; // ohlas ťahu na obale
 const TAP_MS = 180; // ohlas klepnutia na obale
 const COVER_FADE_MS = 450; // prelínanie obalu (musí sedieť s animáciou `cover-in` v styles.css)
 
-export default function Station({ usage, media, agents, online, sendMedia, sendVolume, sendSeek, bigPlayer, active }: Props) {
+export default function Station({ usage, media, agents, audio, online, sendMedia, sendVolume, sendSeek, bigPlayer, active }: Props) {
   const canPlay = online && !!media?.available;
   const now = useClock();
   const [detail, setDetail] = useState(false);
@@ -160,6 +164,8 @@ export default function Station({ usage, media, agents, online, sendMedia, sendV
           />
         )}
         <div className="shade" />
+        {/* equalizer: nad obrázkom aj nad tmavým prechodom, pod textom a ovládaním (z-index v styles.css) */}
+        <Equalizer audio={audio} active={active} />
         <VolumeStrip volume={media?.volume ?? null} onChange={online ? sendVolume : () => {}} />
         <div
           className="cover-hit"

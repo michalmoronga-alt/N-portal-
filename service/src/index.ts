@@ -1,6 +1,6 @@
 // N-portal – lokálna služba na PC.
 // HTTP: servuje zostavenú PWA z ../app/dist a /api/health.
-// WebSocket /ws?t=<token>: posiela stav po témach (sketchup, usage, media, foreground, agents) a prijíma povely z PWA.
+// WebSocket /ws?t=<token>: posiela stav po témach (sketchup, usage, media, audio, foreground, agents) a prijíma povely z PWA.
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -15,7 +15,7 @@ import { ArtworkBridge } from './artwork.js';
 import { ForegroundBridge } from './foreground.js';
 import { AgentsBridge } from './agents.js';
 
-const VERSION = '0.7.1';
+const VERSION = '0.8.0';
 const SKETCHUP_POLL_MS = 250;
 const USAGE_POLL_MS = 5000;
 const HEARTBEAT_PUSH_MS = 2000;
@@ -83,6 +83,7 @@ const server = http.createServer((req, res) => {
         ok: true, version: VERSION, time: Date.now(),
         sketchup, usage, foreground: foreground.state, agents: agents.state,
         media: { ...mediaPayload(), thumb: media.state.thumb ? '(obrázok)' : null },
+        audio: media.audio,
         artwork: artwork.health(),
       }),
     );
@@ -214,6 +215,8 @@ setInterval(() => {
 }, USAGE_POLL_MS);
 
 media.onChange(() => broadcast(msg('media', mediaPayload())));
+// Úroveň zvuku pre equalizer: vlastná ľahká téma, len počas prehrávania (20× za s), po zastavení posledná nula.
+media.onAudio((a) => broadcast(msg('audio', { level: a.level, peak: a.peak, raw: a.raw })));
 media.start();
 
 // Hlásenia z Chrome rozšírenia a dosťahované obrázky: stav pošleme, len keď sa `art` naozaj zmení.

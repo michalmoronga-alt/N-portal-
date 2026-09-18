@@ -1,5 +1,6 @@
 // Nastavenia (ozubené koliesko vpravo hore): režim, LED spätná väzba, celá obrazovka, obmedzený pohyb.
 import type { Pref } from './App';
+import { toggleFullscreen } from './fullscreen';
 
 interface Props {
   open: boolean;
@@ -43,15 +44,11 @@ export default function Settings({ open, onClose, pref, setPref, led, toggleLed,
         </div>
 
         <button className="demo" onClick={toggleFullscreen}>⛶ Celá obrazovka zapnúť / vypnúť</button>
+        <p className="note">(alebo dvojklik na horný pás)</p>
 
         <p className="note">{info}</p>
         <button className="demo" onClick={onClose}>Zavrieť</button>
       </aside>
     </>
   );
-}
-
-export function toggleFullscreen() {
-  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-  else document.documentElement.requestFullscreen().catch(() => {});
 }

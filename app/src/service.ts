@@ -1,5 +1,6 @@
 // Spojenie PWA ↔ lokálna služba (WebSocket). Token prichádza v URL (?t=) a ukladá sa do localStorage.
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { createAudioLevel, pushAudioLevel } from './audioLevel';
 
 export interface SketchUpLast {
   id: string;
@@ -112,6 +113,8 @@ type ServerMsg =
   | { type: 'media'; ts: number; data: MediaState }
   | { type: 'foreground'; ts: number; data: ForegroundState }
   | { type: 'agents'; ts: number; data: AgentsState }
+  // úroveň zvuku pre equalizer: ~20× za s a len počas prehrávania, mimo `MediaState`
+  | { type: 'audio'; ts: number; data: { level: number; peak: number } }
   | { type: 'ack'; clientId?: string; ok: boolean; id?: string; error?: string }
   | { type: 'pong'; ts: number };
 
@@ -144,6 +147,7 @@ const DEMO_MEDIA = DEMO_PARAMS.get('demo') === 'media';
 const DEMO_ANY = DEMO_AGENTS || DEMO_MEDIA;
 const DEMO_PHASE_MS = 6000;
 const DEMO_TICK_MS = 1000;
+const AUDIO_HZ = 20; // ako často posiela úroveň zvuku služba (a teda aj demo)
 
 export function resolveToken(): string | null {
   const fromUrl = new URLSearchParams(location.search).get('t');
@@ -174,6 +178,9 @@ export function useService() {
   const [lastAck, setLastAck] = useState<Ack | null>(null);
   const [offlineSince, setOfflineSince] = useState<number>(() => Date.now()); // od kedy nie je spojenie (0 = je)
   const wsRef = useRef<WebSocket | null>(null);
+  // Úroveň zvuku pre equalizer zámerne mimo React stavu: chodí 20× za sekundu a prekresľovať
+  // pri nej celý strom by starý telefón nezvládol. Equalizer si ju číta vo svojom rAF loope.
+  const audioRef = useRef(createAudioLevel());
   const demoRef = useRef<MediaState | null>(null); // živý stav hudby v `?demo=media`
   const tokenRef = useRef<string | null>(null);
   const retryRef = useRef(0);
@@ -223,7 +230,24 @@ export function useService() {
         m.positionAt = now;
         setMedia({ ...m });
       }, DEMO_TICK_MS);
-      return () => window.clearInterval(t);
+      // ako služba: úroveň zvuku 20× za sekundu (simulovaná hudba 128 BPM) len počas prehrávania,
+      // pri pauze jedna posledná správa s nulou a potom ticho
+      const sim = createSimLevel();
+      let wasPlaying = false;
+      const ta = window.setInterval(() => {
+        const playing = demoRef.current?.status === 'Playing';
+        if (!playing) {
+          if (wasPlaying) pushAudioLevel(audioRef.current, 0);
+          wasPlaying = false;
+          return;
+        }
+        wasPlaying = true;
+        pushAudioLevel(audioRef.current, sim(1 / AUDIO_HZ));
+      }, 1000 / AUDIO_HZ);
+      return () => {
+        window.clearInterval(t);
+        window.clearInterval(ta);
+      };
     }
 
     tokenRef.current = resolveToken();
@@ -296,6 +320,7 @@ export function useService() {
         else if (m.type === 'media') setMedia(m.data);
         else if (m.type === 'foreground') setForeground(m.data);
         else if (m.type === 'agents') setAgents(m.data);
+        else if (m.type === 'audio') pushAudioLevel(audioRef.current, m.data?.level, m.data?.peak);
         else if (m.type === 'ack') setLastAck(m);
       };
       ws.onclose = () => {
@@ -400,7 +425,32 @@ export function useService() {
     ws.send(JSON.stringify({ type: 'media', action: 'seek', value }));
   }, []);
 
-  return { connection, offlineSince, sketchup, usage, media, foreground, agents, lastAck, sendCommand, sendMedia, sendVolume, sendSeek, hasToken: DEMO_ANY || !!tokenRef.current };
+  return { connection, offlineSince, sketchup, usage, media, foreground, agents, audio: audioRef, lastAck, sendCommand, sendMedia, sendVolume, sendSeek, hasToken: DEMO_ANY || !!tokenRef.current };
+}
+
+/**
+ * Simulovaná úroveň zvuku pre `?demo=media` (1 : 1 z mocku `mock6.html`): pomalá obálka
+ * a „údery“ ~128 BPM. Konštanty mocku platia pre 60 snímok za sekundu, tu ich prepočítavame
+ * na krok `dt`, aby demo vyzeralo rovnako aj pri 20 správach za sekundu.
+ */
+function createSimLevel() {
+  let level = 0;
+  let env = 0;
+  let lastBeat = 0;
+  return (dt: number): number => {
+    const t = performance.now() / 1000;
+    const k = Math.max(1, dt * 60); // koľko „snímok mocku“ padne do jedného kroku
+    const beat = 60 / 128;
+    if (t - lastBeat > beat) {
+      lastBeat += beat;
+      if (t - lastBeat > beat) lastBeat = t;
+      env = 0.75 + Math.random() * 0.25;
+    }
+    env *= Math.pow(0.94, k); // dozvuk úderu
+    const target = 0.28 + env * 0.55 + Math.sin(t * 1.7) * 0.06 + Math.sin(t * 5.3) * 0.04;
+    level += (target - level) * (1 - Math.pow(1 - 0.35, k));
+    return Math.max(0, Math.min(1, level));
+  };
 }
 
 // ---------- ukážkové dáta pre `?demo=agents` (nikdy sa nepoužijú v bežnej prevádzke) ----------

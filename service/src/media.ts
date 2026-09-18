@@ -26,6 +26,17 @@ export interface MediaState {
   canSeek: boolean; // prehrávač povoľuje posun v skladbe
 }
 
+/**
+ * Úroveň zvuku PC pre equalizer. Nie je súčasťou `MediaState` – ide vlastnou ľahkou témou `audio`,
+ * aby sa kvôli nej neposielal celý stav hudby (vrátane obrázka) dvadsaťkrát za sekundu.
+ */
+export interface AudioState {
+  level: number; // vyhladená a normalizovaná úroveň 0–1 (to kreslí PWA): rýchly nábeh, dobeh ~0,8 s
+  peak: number; // okamžitá špička, tiež normalizovaná 0–1
+  raw: number; // vyhladená úroveň pred normalizáciou (surová hodnota z Windows, býva len 0,05–0,15)
+  active: boolean; // hudba hrá → vzorky sa posielajú
+}
+
 /** Povely bez hodnoty idú cez `send()`; `seek` má hodnotu a ide cez `seek()` (ako `volume` cez `setVolume()`). */
 export const MEDIA_ACTIONS = new Set(['play', 'pause', 'toggle', 'next', 'prev', 'mute', 'unmute', 'seek']);
 
@@ -35,15 +46,20 @@ const WORKER_PS1 = path.resolve(here, '..', 'scripts', 'media-worker.ps1');
 const CMD_FILE = path.join(SERVICE_DIR, 'media-cmd.txt');
 
 type Listener = (s: MediaState) => void;
+type AudioListener = (a: AudioState) => void;
+
+const r3 = (n: number) => Math.round(n * 1000) / 1000;
 
 export class MediaBridge {
   state: MediaState = {
     available: false, workerOk: false, app: null, status: null, title: null, artist: null, album: null, thumb: null, art: null,
     volume: null, muted: false, position: null, duration: null, positionAt: null, rate: 1, canSeek: false,
   };
+  audio: AudioState = { level: 0, peak: 0, raw: 0, active: false };
   private proc: ChildProcess | null = null;
   private useExe = false;
   private listeners: Listener[] = [];
+  private audioListeners: AudioListener[] = [];
   private restarts = 0;
   private stopped = false;
   private log: (m: string) => void;
@@ -56,6 +72,11 @@ export class MediaBridge {
     this.listeners.push(fn);
   }
 
+  /** Úroveň zvuku (equalizer): počas prehrávania 20× za sekundu, po zastavení posledná nula. */
+  onAudio(fn: AudioListener) {
+    this.audioListeners.push(fn);
+  }
+
   start() {
     this.stopped = false;
     this.spawnWorker();
@@ -63,8 +84,76 @@ export class MediaBridge {
 
   stop() {
     this.stopped = true;
+    this.stopAudio();
     this.proc?.kill();
     this.proc = null;
+  }
+
+  // ---- úroveň zvuku pre equalizer ----
+  private static readonly AUDIO_TICK_MS = 50; // najviac 20 správ za sekundu (Windows časovač dáva reálne ~16)
+  private static readonly AUDIO_DECAY = 0.06; // pokles za 50 ms → z 1 na 0 asi za 0,8 s
+  private static readonly AUDIO_MAX_DECAY = 0.002; // pokles bežiaceho maxima za 50 ms → z 1 na 0 za ~25 s
+  private static readonly AUDIO_MAX_FLOOR = 0.03; // pod touto hlasitosťou už nezosilňujeme (bol by to len šum)
+  private static readonly AUDIO_WARMUP_MS = 2000; // kým sa maximum ustáli, radšej nezosilňuj naslepo
+  private audioTimer: NodeJS.Timeout | null = null;
+  private audioTickMax: number | null = null; // najvyššia špička od posledného tiku (zlúčenie vzoriek)
+  private audioTickAt = 0; // čas posledného tiku, aby dobeh nezávisel od presnosti časovača
+  private audioRunMax = 0; // bežiace maximum hlasitosti; medzi skladbami sa nenuluje, len pomaly klesá
+  private audioStartedAt = 0; // začiatok prehrávania (kvôli rozbehu normalizácie)
+
+  /** Podľa stavu prehrávania zapne alebo vypne prúd úrovne. Volá sa pri každej zmene stavu hudby. */
+  private syncAudio() {
+    const playing = this.state.workerOk && this.state.available && this.state.status === 'Playing';
+    if (playing === this.audio.active) return;
+    if (playing) {
+      this.audio = { level: 0, peak: 0, raw: 0, active: true };
+      this.audioTickMax = null;
+      this.audioTickAt = 0;
+      this.audioStartedAt = Date.now(); // `audioRunMax` zostáva z minula, nech prvé sekundy nie sú prestrelené
+      this.audioTimer = setInterval(() => this.audioTick(), MediaBridge.AUDIO_TICK_MS);
+      this.audioTimer.unref?.();
+    } else {
+      this.stopAudio();
+      this.emitAudio(); // posledná správa: rovná úroveň, PWA equalizer schová
+    }
+  }
+
+  private stopAudio() {
+    if (this.audioTimer) clearInterval(this.audioTimer);
+    this.audioTimer = null;
+    this.audioTickMax = null;
+    this.audio = { level: 0, peak: 0, raw: 0, active: false };
+  }
+
+  /**
+   * Jeden tik (50 ms): z došlých vzoriek vezme najvyššiu, vyhladí úroveň a pošle ju ďalej.
+   * Hudba z prehliadača dáva surovo len okolo 0,1, preto sa úroveň ešte automaticky zosilní
+   * podľa bežiaceho maxima (to klesá pomaly, ~25 s z 1 na 0, takže tichá pasáž hneď nezosilnie šum).
+   */
+  private audioTick() {
+    const peak = this.audioTickMax ?? this.audio.raw; // bez novej vzorky platí posledná hodnota
+    this.audioTickMax = null;
+    const now = Date.now();
+    const dt = this.audioTickAt ? Math.min(500, now - this.audioTickAt) : MediaBridge.AUDIO_TICK_MS;
+    this.audioTickAt = now;
+    const steps = dt / MediaBridge.AUDIO_TICK_MS;
+
+    const raw = Math.max(0, Math.min(1, Math.max(peak, this.audio.raw - MediaBridge.AUDIO_DECAY * steps)));
+    this.audioRunMax = Math.max(peak, this.audioRunMax - MediaBridge.AUDIO_MAX_DECAY * steps);
+
+    // Pri tichu (maximum pod prahom) normalizáciu radšej vypneme, nech sa šum nerozšíri na celú výšku.
+    const quiet = this.audioRunMax < MediaBridge.AUDIO_MAX_FLOOR;
+    const warm = now - this.audioStartedAt >= MediaBridge.AUDIO_WARMUP_MS;
+    // rezerva 15 %: bežné špičky pristanú ~0,87, jednotku dosiahnu len najsilnejšie (žiara nenaráža do stropu)
+    const div = quiet && warm ? 1 : Math.max(this.audioRunMax, MediaBridge.AUDIO_MAX_FLOOR) * 1.15;
+    const norm = (v: number) => r3(Math.max(0, Math.min(1, v / div)));
+
+    this.audio = { level: norm(raw), peak: norm(peak), raw: r3(raw), active: true };
+    this.emitAudio();
+  }
+
+  private emitAudio() {
+    for (const l of this.audioListeners) l(this.audio);
   }
 
   private volTimer: NodeJS.Timeout | null = null;
@@ -123,6 +212,7 @@ export class MediaBridge {
   }
 
   private emit() {
+    this.syncAudio();
     for (const l of this.listeners) l(this.state);
   }
 
@@ -220,6 +310,14 @@ export class MediaBridge {
           canSeek: msg.canSeek === true,
         };
         this.emit();
+        break;
+      }
+      case 'audio': {
+        // Vzorka špičky z workera; do stavu hudby nezasahuje, len sa odloží pre najbližší tik.
+        const p = Number(msg.peak);
+        if (!Number.isFinite(p)) break;
+        const v = Math.max(0, Math.min(1, p));
+        this.audioTickMax = this.audioTickMax === null ? v : Math.max(this.audioTickMax, v);
         break;
       }
       case 'volume':

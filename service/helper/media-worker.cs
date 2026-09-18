@@ -5,6 +5,7 @@
 //   {"type":"media","available":false}
 //   {"type":"timeline","position":12345,"duration":234567,"rate":1,"canSeek":true}   (null = prehrávač nehlási)
 //   {"type":"ack","action":"toggle","ok":true}
+//   {"type":"audio","peak":0.61}   (len počas prehrávania, ~20× za s; posledná po pauze je 0)
 // Povely číta zo stdin po riadkoch: play | pause | toggle | next | prev | vol <0-100> | mute | unmute | seek <ms>
 // Kompilácia: helper/build.ps1 (csc + Windows *.winmd zo System32\WinMetadata, bez Windows SDK).
 using System;
@@ -47,6 +48,18 @@ interface IAudioEndpointVolume
     int GetMute([MarshalAs(UnmanagedType.Bool)] out bool mute);
 }
 
+// Merač výstupu (equalizer): špička signálu na predvolenom výstupe, 0–1.
+// Pozor na IID: platné je C02216F6-8C67-4B5B-9D00-D008E73E0064 (overené cez QI na audio relácii);
+// inde uvádzané C02216F6-8C05-4D5E-9E86-F1F0A2F5A6E6 vracia E_NOINTERFACE.
+[ComImport, Guid("C02216F6-8C67-4B5B-9D00-D008E73E0064"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IAudioMeterInformation
+{
+    int GetPeakValue(out float peak);
+    int GetMeteringChannelCount(out uint count);
+    int GetChannelsPeakValues(uint count, IntPtr peaks); // pole float[count]; nepoužívame, stačí špička
+    int QueryHardwareSupport(out uint mask);
+}
+
 static class PcVolume
 {
     static IAudioEndpointVolume vol;
@@ -75,11 +88,50 @@ static class PcVolume
     public static void Mute(bool m) { var g = Guid.Empty; Get().SetMute(m, ref g); }
 }
 
+// Úroveň zvuku na predvolenom výstupe (pre equalizer). Objekt sa získava rovnako ako hlasitosť;
+// pri zmene predvoleného zariadenia volanie zlyhá (AUDCLNT_E_DEVICE_INVALIDATED) → Reset() a získa sa znova.
+static class PcMeter
+{
+    static IAudioMeterInformation meter;
+    // Chybné HRESULT tieto volania prevedú na výnimku samy (ako pri hlasitosti), preto ich nekontrolujeme.
+    static IAudioMeterInformation Get()
+    {
+        if (meter != null) return meter;
+        var en = (IMMDeviceEnumerator)new MMDeviceEnumeratorCom();
+        IMMDevice dev;
+        en.GetDefaultAudioEndpoint(0 /*eRender*/, 1 /*eMultimedia*/, out dev);
+        var iid = typeof(IAudioMeterInformation).GUID;
+        object o;
+        dev.Activate(ref iid, 23 /*CLSCTX_ALL*/, IntPtr.Zero, out o);
+        meter = (IAudioMeterInformation)o;
+        return meter;
+    }
+    public static void Reset()
+    {
+        var m = meter;
+        meter = null;
+        if (m != null) { try { Marshal.ReleaseComObject(m); } catch { } }
+    }
+    /// <summary>Špička výstupu 0–1 od posledného volania (celý výstup, nie len prehrávač).</summary>
+    public static float Peak()
+    {
+        float f;
+        Get().GetPeakValue(out f);
+        if (!(f > 0)) return 0f;      // NaN aj záporné → 0
+        return f > 1f ? 1f : f;
+    }
+}
+
 static class MediaWorker
 {
     const int POLL_MS = 250;
+    const int METER_MS = 50;             // ako často čítame špičku výstupu počas prehrávania
+    const int METER_HEARTBEAT_MS = 250;  // aj bez zmeny pošli hodnotu takto často
+    const float METER_EPS = 0.005f;      // menšiu zmenu neposielame
     static readonly Queue<string> commands = new Queue<string>();
     static readonly object gate = new object();
+    static readonly object outGate = new object(); // stdout píšu dve vlákna (hlavné + merač)
+    static volatile bool meterWanted = false;      // hrá sa → merač posiela úroveň
 
     static TR Wait<TR>(IAsyncOperation<TR> op)
     {
@@ -111,8 +163,59 @@ static class MediaWorker
 
     static void Emit(string json)
     {
-        Console.Out.WriteLine(json);
-        Console.Out.Flush();
+        lock (outGate)
+        {
+            Console.Out.WriteLine(json);
+            Console.Out.Flush();
+        }
+    }
+
+    static void EmitAudio(float peak)
+    {
+        Emit("{\"type\":\"audio\",\"peak\":" + peak.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + "}");
+    }
+
+    /// <summary>
+    /// Samostatné vlákno: počas prehrávania číta špičku výstupu každých 50 ms a hlási ju
+    /// (len pri zmene > 0,005 alebo raz za 250 ms). Po zastavení pošle jednu poslednú nulu.
+    /// Beží mimo hlavného cyklu, aby povely a hlásenia médií ostali ako doteraz.
+    /// </summary>
+    static void MeterLoop()
+    {
+        bool on = false;
+        bool failed = false; // chybu merača hlásime raz za sériu, nie každých 50 ms
+        float sent = -1;
+        long at = 0;
+        while (true)
+        {
+            if (!meterWanted)
+            {
+                if (on)
+                {
+                    on = false; sent = -1; at = 0;
+                    EmitAudio(0f);
+                }
+                Thread.Sleep(METER_MS);
+                continue;
+            }
+            if (!on) { on = true; sent = -1; at = 0; }
+            float peak;
+            try { peak = PcMeter.Peak(); failed = false; }
+            catch (Exception ex)
+            {
+                PcMeter.Reset();
+                if (!failed) { failed = true; Emit("{\"type\":\"error\",\"message\":" + J("merac zvuku: " + ex.GetType().Name + ": " + ex.Message) + "}"); }
+                Thread.Sleep(METER_HEARTBEAT_MS);
+                continue;
+            }
+            long now = NowMs();
+            if (sent < 0 || Math.Abs(peak - sent) > METER_EPS || now - at >= METER_HEARTBEAT_MS)
+            {
+                sent = peak; at = now;
+                EmitAudio(peak);
+            }
+            Thread.Sleep(METER_MS);
+        }
     }
 
     static void StdinLoop()
@@ -196,6 +299,9 @@ static class MediaWorker
 
         var stdin = new Thread(StdinLoop) { IsBackground = true };
         stdin.Start();
+
+        var meter = new Thread(MeterLoop) { IsBackground = true };
+        meter.Start();
 
         string lastKey = "";
         string lastThumbKey = "";
@@ -289,6 +395,7 @@ static class MediaWorker
                 if (s == null)
                 {
                     tlPlaying = false;
+                    meterWanted = false;
                     if (lastKey != "none")
                     {
                         lastKey = "none";
@@ -301,6 +408,7 @@ static class MediaWorker
                     string status = s.GetPlaybackInfo().PlaybackStatus.ToString();
                     bool playing = status == "Playing";
                     tlPlaying = playing;
+                    meterWanted = playing;
                     var p = Wait(s.TryGetMediaPropertiesAsync());
                     string app = s.SourceAppUserModelId ?? "";
                     string key = app + "|" + status + "|" + p.Title + "|" + p.Artist;
