@@ -109,7 +109,7 @@ export default function Progress({ media, active, variant, onSeek }: Props) {
   }
 
   return (
-    <div className={`prog-wrap card ${ready ? 'on' : ''} ${dragging ? 'seeking' : ''}`}>
+    <div className={`prog-wrap prog-card ${ready ? 'on' : ''} ${dragging ? 'seeking' : ''}`}>
       <div
         className="prog-hit"
         role="slider"

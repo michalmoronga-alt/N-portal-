@@ -189,15 +189,17 @@ html.reduce .ring.glow::before { animation: none !important; box-shadow: 0 0 18p
 .artist { font-size: 2.9vh; color: #c9d3e6; margin-top: .3vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .src { font-size: 2.2vh; color: var(--muted); margin-top: .5vh; }
 /* priebeh skladby: miesto ostáva rezervované aj keď prehrávač dĺžku nehlási (karta neposkočí) */
-.prog-wrap { position: relative; z-index: 2; height: 6.6vh; margin-top: .6vh; opacity: 0; pointer-events: none; transition: opacity .3s var(--ease); }
+/* trieda variantu je prog-card (nie card – globálna .card má overflow hidden a orezávala časy aj bublinu); výška podľa obsahu */
+.prog-wrap { position: relative; z-index: 2; margin-top: 1.6vh; opacity: 0; pointer-events: none; transition: opacity .3s var(--ease); }
+.prog-wrap.prog-card { min-height: 6.8vh; }
 .prog-wrap.on { opacity: 1; pointer-events: auto; }
 .prog-hit { padding: 1.6vh 0; touch-action: none; cursor: ew-resize; }
 .prog { height: .8vh; border-radius: 999px; background: rgba(255, 255, 255, .18); overflow: hidden; }
 .prog b { display: block; height: 100%; border-radius: 999px; background: rgba(255, 255, 255, .85); }
 .prog-wrap.seeking .prog b { background: var(--blue2); }
-.prog-times { display: flex; justify-content: space-between; font-size: 2vh; color: var(--muted); }
+.prog-times { display: flex; justify-content: space-between; font-size: 2vh; line-height: 1.3; color: var(--muted); margin-top: -.6vh; }
 .prog-bubble { position: absolute; bottom: 100%; transform: translate(-50%, -.4vh); padding: .5vh 1.6vw; border-radius: 999px; background: rgba(22, 26, 31, .9); border: 1px solid var(--edge); font-size: 2.8vh; font-weight: 700; white-space: nowrap; pointer-events: none; }
-.station.big-player .prog-wrap { height: 7.4vh; }
+.station.big-player .prog-wrap.prog-card { min-height: 7.6vh; }
 .station.big-player .prog { height: 1.3vh; }
 .station.big-player .prog-times { font-size: 2.4vh; }
 /* v páse SKP/AI len tenká linka pod názvom skladby, bez časov */
