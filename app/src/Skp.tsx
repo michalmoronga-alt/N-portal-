@@ -20,6 +20,8 @@ interface Props {
   lastAck: Ack | null;
   sendCommand: (action: string) => string | null;
   sendMedia: (a: 'play' | 'pause' | 'toggle' | 'next' | 'prev') => void;
+  /** obrazovka je viditeľná (len pre plynulý priebeh skladby v páse) */
+  active: boolean;
 }
 
 interface Tile { action: string; name: string; sub: string; icon: React.ReactNode; enabled: boolean; swipe?: boolean; primary?: boolean }
@@ -42,7 +44,7 @@ function buildTiles(s: SketchUpState | null): Tile[] {
   ];
 }
 
-export default function Skp({ online, sketchup, sketchupActive, usage, media, agents, lastAck, sendCommand, sendMedia }: Props) {
+export default function Skp({ online, sketchup, sketchupActive, usage, media, agents, lastAck, sendCommand, sendMedia, active }: Props) {
   const now = useClock();
   const [flash, setFlash] = useState<Flash>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -121,7 +123,7 @@ export default function Skp({ online, sketchup, sketchupActive, usage, media, ag
   return (
     <div className="skp">
       {/* zúžený Station: bez rámčeka, priamo na pozadí – zdieľaný s režimom AI */}
-      <SideStrip usage={usage} media={media} agents={online ? agents : null} sendMedia={sendMedia} now={now} />
+      <SideStrip usage={usage} media={media} agents={online ? agents : null} sendMedia={sendMedia} now={now} active={active} />
 
       <div className="skp-main">
         <div className="grid">

@@ -7,6 +7,7 @@
 // Ak sa niekedy vrátia, patria sem ako voliteľná prop (napr. `resets`) + vlastné pravidlá v CSS,
 // nie ako prepisy tried `.strip`.
 import Ring from './Ring';
+import Progress from './Progress';
 import type { AgentsState, MediaState, UsageState } from './service';
 import { providerActivity } from './ringActivity';
 import { formatDateDayMonth } from './time';
@@ -21,9 +22,11 @@ interface Props {
   agents: AgentsState | null;
   sendMedia: (a: 'play' | 'pause' | 'toggle' | 'next' | 'prev') => void;
   now: Date;
+  /** obrazovka je viditeľná – inak sa linka priebehu neprekresľuje */
+  active: boolean;
 }
 
-export default function SideStrip({ usage, media, agents, sendMedia, now }: Props) {
+export default function SideStrip({ usage, media, agents, sendMedia, now, active }: Props) {
   const stale = !usage || !usage.available || usage.stale;
   const playing = media?.status === 'Playing';
 
@@ -35,6 +38,7 @@ export default function SideStrip({ usage, media, agents, sendMedia, now }: Prop
       </div>
       <div className="player">
         <div className="np">{media?.available ? <><span>♪ </span><b>{media.title || 'Bez názvu'}</b>{media.artist ? ` · ${media.artist}` : ''}</> : <span className="muted">nič nehrá</span>}</div>
+        <Progress media={media} active={active} variant="mini" />
         <div className="mus">
           <button onClick={() => { ledTap(); sendMedia('prev'); }} disabled={!media?.available} aria-label="Predošlá"><IconPrev /></button>
           <button className="main" onClick={() => { ledTap(); sendMedia('toggle'); }} disabled={!media?.available} aria-label="Prehrať / pauza">{playing ? <IconPause /> : <IconPlay />}</button>

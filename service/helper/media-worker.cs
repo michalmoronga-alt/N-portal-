@@ -3,8 +3,9 @@
 //   {"type":"ready"}
 //   {"type":"media","available":true,"app":"Chrome","status":"Playing","title":"…","artist":"…","album":"…","thumb":"data:image/png;base64,…"}
 //   {"type":"media","available":false}
+//   {"type":"timeline","position":12345,"duration":234567,"rate":1,"canSeek":true}   (null = prehrávač nehlási)
 //   {"type":"ack","action":"toggle","ok":true}
-// Povely číta zo stdin po riadkoch: play | pause | toggle | next | prev
+// Povely číta zo stdin po riadkoch: play | pause | toggle | next | prev | vol <0-100> | mute | unmute | seek <ms>
 // Kompilácia: helper/build.ps1 (csc + Windows *.winmd zo System32\WinMetadata, bez Windows SDK).
 using System;
 using System.Collections.Generic;
@@ -147,6 +148,45 @@ static class MediaWorker
         catch { return null; }
     }
 
+    /// <summary>
+    /// Pozícia/dĺžka skladby z GetTimelineProperties(). `pos`/`dur` sú v ms, -1 = prehrávač nehlási.
+    /// Pozícia platí k okamihu volania: ak relácia hrá, dopočíta sa čas od `LastUpdatedTime`
+    /// (Windows hodnotu sám neposúva; ak ju prehrávač obnovuje často, dopočet je zanedbateľný).
+    /// </summary>
+    static void ReadTimeline(GlobalSystemMediaTransportControlsSession s, bool playing, out long pos, out long dur, out double rate, out bool canSeek)
+    {
+        pos = -1; dur = -1; rate = 1; canSeek = false;
+        try
+        {
+            var info = s.GetPlaybackInfo();
+            if (info == null) return;
+            var ctl = info.Controls;
+            canSeek = ctl.IsPlaybackPositionEnabled;
+            var r = info.PlaybackRate;
+            if (r.HasValue && r.Value > 0) rate = r.Value;
+
+            var t = s.GetTimelineProperties();
+            if (t == null) return;
+            if (t.LastUpdatedTime.Ticks <= 0) return; // prehrávač pozíciu vôbec nehlási
+
+            if (t.EndTime > t.StartTime) dur = (long)(t.EndTime - t.StartTime).TotalMilliseconds;
+            long p = (long)(t.Position - t.StartTime).TotalMilliseconds;
+            if (playing)
+            {
+                double age = (DateTimeOffset.UtcNow - t.LastUpdatedTime).TotalMilliseconds;
+                // niektoré prehrávače (napr. Chrome na pozadí) hlásenie neobnovujú aj desiatky sekúnd;
+                // strop 60 s bráni nezmyselnému dopočtu pri pokazenom čase hlásenia
+                if (age > 0 && age < 60000) p += (long)(age * rate);
+            }
+            if (p < 0) p = 0;
+            if (dur >= 0 && p > dur) p = dur;
+            pos = p;
+        }
+        catch { }
+    }
+
+    static long NowMs() { return DateTime.UtcNow.Ticks / TimeSpan.TicksPerMillisecond; }
+
     static int Main()
     {
         Console.OutputEncoding = new UTF8Encoding(false);
@@ -162,6 +202,13 @@ static class MediaWorker
         string lastThumb = null;
         int lastVol = -1;
         bool lastMute = false;
+        // priebeh skladby
+        long tlPos = -1, tlDur = -1;
+        double tlRate = 1;
+        bool tlSeek = false;
+        long tlAt = 0;          // kedy sme naposledy hlásili pozíciu (ms)
+        bool tlForce = true;    // vynútiť hlásenie (nová skladba, povel, štart)
+        bool tlPlaying = false; // hrá sa (kvôli zarovnaniu hlásení na 1 s)
 
         while (true)
         {
@@ -212,6 +259,13 @@ static class MediaWorker
                     bool ok = false;
                     string err = null;
                     if (cs == null) err = "ziadny prehravac";
+                    else if (cmd.StartsWith("seek "))
+                    {
+                        long ms;
+                        if (long.TryParse(cmd.Substring(5).Trim(), out ms) && ms >= 0)
+                            ok = Wait(cs.TryChangePlaybackPositionAsync(ms * TimeSpan.TicksPerMillisecond));
+                        else err = "zly cas";
+                    }
                     else
                     {
                         switch (cmd)
@@ -226,6 +280,7 @@ static class MediaWorker
                     }
                     Emit("{\"type\":\"ack\",\"action\":" + J(cmd) + ",\"ok\":" + (ok ? "true" : "false") + (err != null ? ",\"error\":" + J(err) : "") + "}");
                     lastKey = ""; // vynútiť nové načítanie stavu
+                    tlForce = true;
                     Thread.Sleep(120);
                 }
 
@@ -233,11 +288,19 @@ static class MediaWorker
                 var s = mgr.GetCurrentSession();
                 if (s == null)
                 {
-                    if (lastKey != "none") { lastKey = "none"; Emit("{\"type\":\"media\",\"available\":false}"); }
+                    tlPlaying = false;
+                    if (lastKey != "none")
+                    {
+                        lastKey = "none";
+                        Emit("{\"type\":\"media\",\"available\":false}");
+                        tlPos = -1; tlDur = -1; tlRate = 1; tlSeek = false; tlAt = 0; tlForce = true;
+                    }
                 }
                 else
                 {
                     string status = s.GetPlaybackInfo().PlaybackStatus.ToString();
+                    bool playing = status == "Playing";
+                    tlPlaying = playing;
                     var p = Wait(s.TryGetMediaPropertiesAsync());
                     string app = s.SourceAppUserModelId ?? "";
                     string key = app + "|" + status + "|" + p.Title + "|" + p.Artist;
@@ -253,6 +316,29 @@ static class MediaWorker
                         Emit("{\"type\":\"media\",\"available\":true,\"app\":" + J(app) + ",\"status\":" + J(status) +
                              ",\"title\":" + J(p.Title) + ",\"artist\":" + J(p.Artist) + ",\"album\":" + J(p.AlbumTitle) +
                              ",\"thumb\":" + J(lastThumb) + "}");
+                        tlForce = true; // pozíciu poslať hneď za novým stavom
+                    }
+
+                    // --- priebeh skladby: pri prehrávaní 1× za sekundu, inak len pri zmene/skoku ---
+                    long pos, dur; double rate; bool canSeek;
+                    ReadTimeline(s, playing, out pos, out dur, out rate, out canSeek);
+                    long now = NowMs();
+                    bool known = pos >= 0;
+                    bool changed = dur != tlDur || canSeek != tlSeek || Math.Abs(rate - tlRate) > 0.01 || known != (tlPos >= 0);
+                    bool jumped = false;
+                    if (!changed && known && tlAt > 0)
+                    {
+                        long expected = tlPos + (playing ? (long)((now - tlAt) * tlRate) : 0);
+                        jumped = Math.Abs(pos - expected) > 1500;
+                    }
+                    bool periodic = playing && known && tlAt > 0 && now - tlAt >= 1000;
+                    if (tlForce || changed || jumped || periodic || tlAt == 0)
+                    {
+                        tlPos = pos; tlDur = dur; tlRate = rate; tlSeek = canSeek; tlAt = now; tlForce = false;
+                        Emit("{\"type\":\"timeline\",\"position\":" + (pos >= 0 ? pos.ToString() : "null") +
+                             ",\"duration\":" + (dur >= 0 ? dur.ToString() : "null") +
+                             ",\"rate\":" + rate.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) +
+                             ",\"canSeek\":" + (canSeek ? "true" : "false") + "}");
                     }
                 }
             }
@@ -263,7 +349,14 @@ static class MediaWorker
                 Thread.Sleep(1000);
             }
             int pending; lock (gate) pending = commands.Count;
-            Thread.Sleep(pending > 0 ? 10 : POLL_MS);
+            int nap = pending > 0 ? 10 : POLL_MS;
+            if (pending == 0 && tlPlaying && tlAt > 0)
+            {
+                // počas prehrávania sa zobuď práve na ďalšie hlásenie pozície (inak by vychádzalo ~1,2 s)
+                long due = tlAt + 1000 - NowMs();
+                if (due > 10 && due < nap) nap = (int)due;
+            }
+            Thread.Sleep(nap);
         }
     }
 }

@@ -18,9 +18,15 @@ export interface MediaState {
   thumb: string | null; // data URL obrázka skladby
   volume: number | null; // hlasitosť PC 0–100 (hlavný výstup)
   muted: boolean;
+  position: number | null; // ms od začiatku skladby v čase `positionAt`; null = prehrávač nehlási
+  duration: number | null; // ms; null = neznáma (živý stream, web bez hlásenia)
+  positionAt: number | null; // epoch ms (čas služby), kedy bola `position` nameraná
+  rate: number; // rýchlosť prehrávania, 1 = normálne
+  canSeek: boolean; // prehrávač povoľuje posun v skladbe
 }
 
-export const MEDIA_ACTIONS = new Set(['play', 'pause', 'toggle', 'next', 'prev', 'mute', 'unmute']);
+/** Povely bez hodnoty idú cez `send()`; `seek` má hodnotu a ide cez `seek()` (ako `volume` cez `setVolume()`). */
+export const MEDIA_ACTIONS = new Set(['play', 'pause', 'toggle', 'next', 'prev', 'mute', 'unmute', 'seek']);
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const WORKER_EXE = path.resolve(here, '..', 'bin', 'media-worker.exe');
@@ -30,7 +36,10 @@ const CMD_FILE = path.join(SERVICE_DIR, 'media-cmd.txt');
 type Listener = (s: MediaState) => void;
 
 export class MediaBridge {
-  state: MediaState = { available: false, workerOk: false, app: null, status: null, title: null, artist: null, album: null, thumb: null, volume: null, muted: false };
+  state: MediaState = {
+    available: false, workerOk: false, app: null, status: null, title: null, artist: null, album: null, thumb: null,
+    volume: null, muted: false, position: null, duration: null, positionAt: null, rate: 1, canSeek: false,
+  };
   private proc: ChildProcess | null = null;
   private useExe = false;
   private listeners: Listener[] = [];
@@ -88,9 +97,21 @@ export class MediaBridge {
     return true;
   }
 
-  /** Pošle povel pracovníkovi (vykoná ho do ~250 ms). */
+  /** Posun v skladbe na `ms` od začiatku. Ignoruje sa, ak prehrávač posun nepodporuje. */
+  seek(ms: number): boolean {
+    if (!Number.isFinite(ms) || ms < 0) return false;
+    if (!this.state.workerOk || !this.useExe || !this.proc?.stdin?.writable) return false;
+    if (!this.state.canSeek) {
+      this.log(`media seek ${Math.round(ms)} ms zamietnutý: prehrávač posun nepodporuje`);
+      return false;
+    }
+    this.proc.stdin.write(`seek ${Math.round(ms)}\n`);
+    return true;
+  }
+
+  /** Pošle povel pracovníkovi bez hodnoty (vykoná ho do ~250 ms). */
   send(action: string): boolean {
-    if (!MEDIA_ACTIONS.has(action) || !this.state.workerOk) return false;
+    if (action === 'seek' || !MEDIA_ACTIONS.has(action) || !this.state.workerOk) return false;
     if (this.useExe && this.proc?.stdin?.writable) {
       this.proc.stdin.write(action + '\n');
       return true;
@@ -136,7 +157,7 @@ export class MediaBridge {
     proc.on('exit', (code) => {
       this.log(`media-worker skončil (kód ${code})`);
       this.proc = null;
-      this.state = { ...this.state, workerOk: false, available: false };
+      this.state = { ...this.state, workerOk: false, available: false, position: null, positionAt: null, duration: null, canSeek: false };
       this.emit();
       if (!this.stopped) {
         const delay = Math.min(2000 * 2 ** this.restarts, 30000);
@@ -161,20 +182,45 @@ export class MediaBridge {
         this.log('media-worker pripravený');
         this.emit();
         break;
-      case 'media':
+      case 'media': {
+        const av = msg.available === true;
         this.state = {
           ...this.state,
           workerOk: true,
-          available: msg.available === true,
+          available: av,
           app: (msg.app as string) ?? null,
           status: (msg.status as string) ?? null,
           title: (msg.title as string) ?? null,
           artist: (msg.artist as string) ?? null,
           album: (msg.album as string) ?? null,
           thumb: (msg.thumb as string) ?? null,
+          // pozícia patrí k predošlej skladbe/stavu – pracovník ju pošle hneď v správe `timeline`
+          position: null,
+          positionAt: null,
+          duration: null,
+          // bez prehrávača nemá zmysel ponúkať posun
+          canSeek: av ? this.state.canSeek : false,
+          rate: av ? this.state.rate : 1,
         };
         this.emit();
         break;
+      }
+      case 'timeline': {
+        const pos = msg.position === null || msg.position === undefined ? null : Number(msg.position);
+        const dur = msg.duration === null || msg.duration === undefined ? null : Number(msg.duration);
+        const rate = Number(msg.rate);
+        this.state = {
+          ...this.state,
+          workerOk: true,
+          position: pos === null || !Number.isFinite(pos) ? null : pos,
+          duration: dur === null || !Number.isFinite(dur) ? null : dur,
+          positionAt: pos === null || !Number.isFinite(pos) ? null : Date.now(),
+          rate: Number.isFinite(rate) && rate > 0 ? rate : 1,
+          canSeek: msg.canSeek === true,
+        };
+        this.emit();
+        break;
+      }
       case 'volume':
         this.state = { ...this.state, workerOk: true, volume: Number(msg.level), muted: msg.muted === true };
         this.emit();

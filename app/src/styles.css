@@ -169,15 +169,39 @@ html.reduce .ring.glow::before { animation: none !important; box-shadow: 0 0 18p
 
 /* hudba: obrázok skladby v pozadí, čisté ikony */
 .music { display: flex; flex-direction: column; justify-content: flex-end; padding: 2.5vh 3vw; gap: 1vh; isolation: isolate; }
-.music .cover { position: absolute; inset: 0; z-index: -2; background: linear-gradient(135deg, #2a3440, #161a1f); transition: opacity .6s; }
+/* obal je mierne zväčšený, aby sa pri ohlase ťahu neodhalil okraj karty */
+.music .cover { position: absolute; inset: 0; z-index: -2; background: linear-gradient(135deg, #2a3440, #161a1f); transform: scale(1.08); transition: opacity .6s, transform .22s var(--ease), filter .18s; }
 .music .cover.has { background: var(--cover) center / cover no-repeat; filter: saturate(1.05); }
+.music .cover.nudge-left { transform: scale(1.08) translateX(-6%); }
+.music .cover.nudge-right { transform: scale(1.08) translateX(6%); }
+.music .cover.tap { filter: brightness(.78); }
+.music .cover.has.tap { filter: saturate(1.05) brightness(.78); }
+/* dotyková plocha obalu: karta bez horného pásu hlasitosti a bez prúžku s tlačidlami */
+.cover-hit { position: absolute; left: 0; right: 0; top: 30%; bottom: 0; z-index: 1; touch-action: none; }
+.music .meta { pointer-events: none; } /* názov nech prepúšťa gestá na obal */
 .music .shade { position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(22, 26, 31, .1) 0%, rgba(22, 26, 31, .55) 45%, rgba(22, 26, 31, .93) 100%); }
 .music .meta { min-width: 0; }
 .title { font-size: 4.2vh; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 2px 8px rgba(0, 0, 0, .6); }
 .title.muted { color: var(--muted); }
 .artist { font-size: 2.9vh; color: #c9d3e6; margin-top: .3vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .src { font-size: 2.2vh; color: var(--muted); margin-top: .5vh; }
-.ctrl { display: grid; grid-template-columns: 1fr 1.2fr 1fr; margin-top: 1vh; }
+/* priebeh skladby: miesto ostáva rezervované aj keď prehrávač dĺžku nehlási (karta neposkočí) */
+.prog-wrap { position: relative; z-index: 2; height: 6.6vh; margin-top: .6vh; opacity: 0; pointer-events: none; transition: opacity .3s var(--ease); }
+.prog-wrap.on { opacity: 1; pointer-events: auto; }
+.prog-hit { padding: 1.6vh 0; touch-action: none; cursor: ew-resize; }
+.prog { height: .8vh; border-radius: 999px; background: rgba(255, 255, 255, .18); overflow: hidden; }
+.prog b { display: block; height: 100%; border-radius: 999px; background: rgba(255, 255, 255, .85); }
+.prog-wrap.seeking .prog b { background: var(--blue2); }
+.prog-times { display: flex; justify-content: space-between; font-size: 2vh; color: var(--muted); }
+.prog-bubble { position: absolute; bottom: 100%; transform: translate(-50%, -.4vh); padding: .5vh 1.6vw; border-radius: 999px; background: rgba(22, 26, 31, .9); border: 1px solid var(--edge); font-size: 2.8vh; font-weight: 700; white-space: nowrap; pointer-events: none; }
+.station.big-player .prog-wrap { height: 7.4vh; }
+.station.big-player .prog { height: 1.3vh; }
+.station.big-player .prog-times { font-size: 2.4vh; }
+/* v páse SKP/AI len tenká linka pod názvom skladby, bez časov */
+.prog-wrap.mini { height: 1.4vh; width: 80%; margin: 0 auto; }
+.prog-wrap.mini .prog { height: .5vh; }
+
+.ctrl { position: relative; z-index: 2; display: grid; grid-template-columns: 1fr 1.2fr 1fr; margin-top: 1vh; }
 .ctrl button { height: 11vh; border: 0; background: transparent; color: rgba(255, 255, 255, .85); font-size: 5vh; display: flex; align-items: center; justify-content: center; transition: transform .1s, opacity .2s; }
 .ctrl button.main { font-size: 7.5vh; color: #fff; }
 .ctrl button:active { transform: scale(.85); }

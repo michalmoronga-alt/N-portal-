@@ -14,7 +14,7 @@ import { MediaBridge, MEDIA_ACTIONS } from './media.js';
 import { ForegroundBridge } from './foreground.js';
 import { AgentsBridge } from './agents.js';
 
-const VERSION = '0.6.0';
+const VERSION = '0.7.0';
 const SKETCHUP_POLL_MS = 250;
 const USAGE_POLL_MS = 5000;
 const HEARTBEAT_PUSH_MS = 2000;
@@ -135,7 +135,10 @@ wss.on('connection', (ws, req) => {
       return;
     }
     if (m.type === 'media') {
-      const ok = m.action === 'volume' ? media.setVolume(Number(m.value)) : MEDIA_ACTIONS.has(m.action) && media.send(m.action);
+      const ok =
+        m.action === 'volume' ? media.setVolume(Number(m.value))
+          : m.action === 'seek' ? media.seek(Number(m.value))
+            : MEDIA_ACTIONS.has(m.action) && media.send(m.action);
       if (!ok) log(`media povel odmietnutý: ${m.action} ${m.value ?? ''}`);
       return;
     }

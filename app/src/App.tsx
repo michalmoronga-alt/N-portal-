@@ -30,7 +30,7 @@ interface Notice {
 }
 
 export default function App() {
-  const { connection, offlineSince, sketchup, usage, media, foreground, agents, lastAck, sendCommand, sendMedia, sendVolume, hasToken } = useService();
+  const { connection, offlineSince, sketchup, usage, media, foreground, agents, lastAck, sendCommand, sendMedia, sendVolume, sendSeek, hasToken } = useService();
   const [pref, setPref] = useState<Pref>(() => {
     try {
       const v = localStorage.getItem(PREF_KEY);
@@ -312,10 +312,10 @@ export default function App() {
 
       <main className="main">
         <div ref={stationRef} className={`layer ${shownMode.current === 'station' ? '' : 'hidden'}`}>
-          <Station usage={usage} media={media} agents={agents} online={online} sendMedia={sendMedia} sendVolume={sendVolume} bigPlayer={bigPlayer} active={mode === 'station'} />
+          <Station usage={usage} media={media} agents={agents} online={online} sendMedia={sendMedia} sendVolume={sendVolume} sendSeek={sendSeek} bigPlayer={bigPlayer} active={mode === 'station'} />
         </div>
         <div ref={skpRef} className={`layer ${shownMode.current === 'skp' ? '' : 'hidden'}`}>
-          <Skp online={online} sketchup={sketchup} sketchupActive={sketchupActive} usage={usage} media={media} agents={agents} lastAck={lastAck} sendCommand={sendCommand} sendMedia={sendMedia} />
+          <Skp online={online} sketchup={sketchup} sketchupActive={sketchupActive} usage={usage} media={media} agents={agents} lastAck={lastAck} sendCommand={sendCommand} sendMedia={sendMedia} active={mode === 'skp'} />
         </div>
         <div ref={aiRef} className={`layer ${shownMode.current === 'ai' ? '' : 'hidden'}`}>
           <Ai agents={agents} online={online} usage={usage} media={media} sendMedia={sendMedia} active={mode === 'ai'} />

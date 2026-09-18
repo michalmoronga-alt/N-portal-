@@ -47,7 +47,7 @@ export default function Ai({ agents, online, usage, media, sendMedia, active }: 
 
   return (
     <div className="ai">
-      <SideStrip usage={usage} media={media} agents={online ? agents : null} sendMedia={sendMedia} now={now} />
+      <SideStrip usage={usage} media={media} agents={online ? agents : null} sendMedia={sendMedia} now={now} active={active} />
 
       <section className={`card glass panel ${available ? '' : 'unavail'}`}>
         <div className="hd">

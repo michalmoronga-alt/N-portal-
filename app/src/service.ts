@@ -98,6 +98,11 @@ export interface MediaState {
   thumb: string | null;
   volume: number | null;
   muted: boolean;
+  position: number | null; // ms od začiatku skladby v čase `positionAt`; null = prehrávač pozíciu nehlási
+  duration: number | null; // ms; null = neznáma dĺžka (živý stream, web bez hlásenia)
+  positionAt: number | null; // epoch ms, kedy služba pozíciu namerala
+  rate: number; // rýchlosť prehrávania, 1 = normálne
+  canSeek: boolean; // prehrávač povoľuje posun v skladbe
 }
 
 type ServerMsg =
@@ -124,14 +129,20 @@ const RETRY_MAX_MS = 5000;
 // Namiesto WebSocketu nastaví pevné usage/hudbu, aktívne okno „ai“ a každých 6 s prehodí fázu
 // agentov (pracujú → čaká na teba → hotovo → nič nebeží → nedostupné → …), aby sa dal overiť
 // štítok v hornom páse, LED aj toast. Bez parametra sa nič nemení, bežnej prevádzky sa to netýka.
-const DEMO_AGENTS = (() => {
+const DEMO_PARAMS = (() => {
   try {
-    return new URLSearchParams(location.search).get('demo') === 'agents';
+    return new URLSearchParams(location.search);
   } catch {
-    return false;
+    return new URLSearchParams();
   }
 })();
+const DEMO_AGENTS = DEMO_PARAMS.get('demo') === 'agents';
+// `?demo=media` – test priebehu skladby a posunu bez služby na PC. Doplnky (len pre demo):
+// `&big=1` hlási aktívny Chrome (väčší prehrávač), `&nodur=1` skladbu bez známej dĺžky (prúžok skrytý).
+const DEMO_MEDIA = DEMO_PARAMS.get('demo') === 'media';
+const DEMO_ANY = DEMO_AGENTS || DEMO_MEDIA;
 const DEMO_PHASE_MS = 6000;
+const DEMO_TICK_MS = 1000;
 
 export function resolveToken(): string | null {
   const fromUrl = new URLSearchParams(location.search).get('t');
@@ -162,6 +173,7 @@ export function useService() {
   const [lastAck, setLastAck] = useState<Ack | null>(null);
   const [offlineSince, setOfflineSince] = useState<number>(() => Date.now()); // od kedy nie je spojenie (0 = je)
   const wsRef = useRef<WebSocket | null>(null);
+  const demoRef = useRef<MediaState | null>(null); // živý stav hudby v `?demo=media`
   const tokenRef = useRef<string | null>(null);
   const retryRef = useRef(0);
   const lastMsgRef = useRef(0);
@@ -180,6 +192,36 @@ export function useService() {
       };
       step();
       const t = window.setInterval(step, DEMO_PHASE_MS);
+      return () => window.clearInterval(t);
+    }
+
+    if (DEMO_MEDIA) {
+      setConnection('open');
+      setOfflineSince(0);
+      const big = DEMO_PARAMS.get('big') !== null;
+      setForeground({
+        available: true,
+        app: big ? 'chrome.exe' : 'explorer.exe',
+        pid: 4321,
+        title: big ? 'YouTube – Chrome' : 'Plocha',
+        kind: big ? 'chrome' : 'other',
+        ts: Date.now(),
+      });
+      setUsage(demoUsage());
+      const st = demoMedia(DEMO_PARAMS.get('nodur') === null);
+      demoRef.current = st;
+      setMedia({ ...st });
+      // ako služba: raz za sekundu nová pozícia (pri pauze sa nemení)
+      const t = window.setInterval(() => {
+        const m = demoRef.current;
+        if (!m || m.status !== 'Playing' || m.position === null) return;
+        const now = Date.now();
+        let p = m.position + (now - (m.positionAt ?? now)) * (m.rate || 1);
+        if (m.duration !== null && p >= m.duration) p = 0; // demo hrá dokola
+        m.position = p;
+        m.positionAt = now;
+        setMedia({ ...m });
+      }, DEMO_TICK_MS);
       return () => window.clearInterval(t);
     }
 
@@ -326,6 +368,10 @@ export function useService() {
   }, []);
 
   const sendMedia = useCallback((action: 'play' | 'pause' | 'toggle' | 'next' | 'prev' | 'mute' | 'unmute') => {
+    if (DEMO_MEDIA) {
+      demoCommand(demoRef.current, action, setMedia);
+      return;
+    }
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify({ type: 'media', action }));
@@ -337,7 +383,23 @@ export function useService() {
     ws.send(JSON.stringify({ type: 'media', action: 'volume', value: Math.max(0, Math.min(100, Math.round(pct))) }));
   }, []);
 
-  return { connection, offlineSince, sketchup, usage, media, foreground, agents, lastAck, sendCommand, sendMedia, sendVolume, hasToken: DEMO_AGENTS || !!tokenRef.current };
+  /** Posun v skladbe (ms od začiatku) – odosiela sa až po pustení prsta, jeden povel. */
+  const sendSeek = useCallback((ms: number) => {
+    const value = Math.max(0, Math.round(ms));
+    if (DEMO_MEDIA) {
+      const m = demoRef.current;
+      if (!m) return;
+      m.position = m.duration === null ? value : Math.min(value, m.duration);
+      m.positionAt = Date.now();
+      setMedia({ ...m });
+      return;
+    }
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: 'media', action: 'seek', value }));
+  }, []);
+
+  return { connection, offlineSince, sketchup, usage, media, foreground, agents, lastAck, sendCommand, sendMedia, sendVolume, sendSeek, hasToken: DEMO_ANY || !!tokenRef.current };
 }
 
 // ---------- ukážkové dáta pre `?demo=agents` (nikdy sa nepoužijú v bežnej prevádzke) ----------
@@ -358,19 +420,54 @@ function demoUsage(): UsageState {
   };
 }
 
-function demoMedia(): MediaState {
+const DEMO_TRACKS: { title: string; artist: string; duration: number }[] = [
+  { title: 'Refew – ADHD (OFFICIAL)', artist: 'Refew', duration: 225000 },
+  { title: 'Nočná zmena', artist: 'Kontrafakt', duration: 198000 },
+  { title: 'Dlhý live set', artist: 'Rádio', duration: 4230000 },
+];
+
+function demoMedia(withDuration = true): MediaState {
+  const t = DEMO_TRACKS[0];
   return {
     available: true,
     workerOk: true,
     app: 'chrome.exe',
     status: 'Playing',
-    title: 'Refew – ADHD (OFFICIAL)',
-    artist: 'Refew',
+    title: t.title,
+    artist: t.artist,
     album: null,
     thumb: null,
     volume: 42,
     muted: false,
+    position: 0,
+    duration: withDuration ? t.duration : null,
+    positionAt: Date.now(),
+    rate: 1,
+    canSeek: true,
   };
+}
+
+/** Povely hudby v `?demo=media`: vykonajú sa lokálne, aby sa dal panel testovať bez služby. */
+function demoCommand(m: MediaState | null, action: string, push: (s: MediaState) => void) {
+  if (!m) return;
+  const now = Date.now();
+  if (action === 'toggle' || action === 'play' || action === 'pause') {
+    const playing = m.status === 'Playing';
+    const next = action === 'toggle' ? !playing : action === 'play';
+    if (playing && m.position !== null) m.position += (now - (m.positionAt ?? now)) * (m.rate || 1);
+    m.status = next ? 'Playing' : 'Paused';
+    m.positionAt = now;
+  } else if (action === 'next' || action === 'prev') {
+    const i = DEMO_TRACKS.findIndex((t) => t.title === m.title);
+    const step = action === 'next' ? 1 : DEMO_TRACKS.length - 1;
+    const t = DEMO_TRACKS[(Math.max(0, i) + step) % DEMO_TRACKS.length];
+    m.title = t.title;
+    m.artist = t.artist;
+    m.duration = m.duration === null ? null : t.duration;
+    m.position = 0;
+    m.positionAt = now;
+  } else return;
+  push({ ...m });
 }
 
 const DEMO_TODAY: AgentsToday = { projects: 3, turns: 41, activeMs: 7_800_000, claudeOut: 128505, codexOut: 11295 };
