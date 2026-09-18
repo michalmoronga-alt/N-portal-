@@ -32,7 +32,7 @@ E0 je samostatný technický experiment, nie hotová V1. Kandidát na prvý pou�
 
 ## Etapa AI‑1 — režim AI (schválené 17. 9. 2026)
 
-Tretí režim popri Station a SKP; spúšťa sa pri aktívnom okne Claude alebo Codex. Bočný pás ako v SKP (čas, usage v strede, malý prehrávač), karta „Agenti“ so živým stavom relácií Claude Code a Codexu (pracuje / čaká na teba / hotovo / nečinný), štítok a LED upozornenie naprieč režimami, mini logá. Celá špecifikácia, zdroje dát a kontrakt: [AI-REZIM.md](AI-REZIM.md). Nasledujú AI‑2 (detail karty potiahnutím: model, effort, tokeny, ťahy, trvanie) a AI‑3 (klepnutie prenesie okno relácie dopredu).
+Tretí režim popri Station a SKP; spúšťa sa pri aktívnom okne Claude alebo Codex. Bočný pás ako v SKP (čas, usage v strede, malý prehrávač), karta „Agenti“ so živým stavom relácií Claude Code a Codexu (pracuje / čaká na teba / hotovo / nečinný), štítok a LED upozornenie naprieč režimami, mini logá. Celá špecifikácia, zdroje dát a kontrakt: [AI-REZIM.md](AI-REZIM.md). **AI‑2 (detail karty potiahnutím) hotové 18. 9. 2026.** Nasleduje AI‑3 (klepnutie prenesie okno relácie dopredu).
 
 ## Backlog — až po základnom teste
 
