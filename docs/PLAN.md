@@ -34,7 +34,7 @@ E0 je samostatný technický experiment, nie hotová V1. Kandidát na prvý pou�
 
 Tretí režim popri Station a SKP; spúšťa sa pri aktívnom okne Claude alebo Codex. Bočný pás ako v SKP (čas, usage v strede, malý prehrávač), karta „Agenti“ so živým stavom relácií Claude Code a Codexu (pracuje / čaká na teba / hotovo / nečinný), štítok a LED upozornenie naprieč režimami, mini logá. Celá špecifikácia, zdroje dát a kontrakt: [AI-REZIM.md](AI-REZIM.md). **AI‑2 (detail karty potiahnutím) hotové 18. 9. 2026.** AI‑3 (klepnutie prenesie okno aplikácie Claude/Codex dopredu; konkrétnu reláciu v záložke bezpečne vybrať nevieme) **odložené** rozhodnutím Michala 18. 9. 2026.
 
-## Etapa H2 — hudba, 2. kolo (plán 18. 9. 2026, čaká na doplnenie Michala)
+## Etapa H2 — hudba, 2. kolo (H2‑1 až H2‑3 **hotové 18. 9. 2026**; H2‑4 odložené; H2‑5 čaká na Michala)
 
 Stav dnes: hudobný modul (C# `media-worker`) hlási názov, interpreta, zdroj, stav, obrázok a hlasitosť PC; ovláda play/pauza/ďalšia/predošlá a hlasitosť. **Nehlási pozíciu ani dĺžku skladby** a nevie posúvať v skladbe. Windows to cez Media Session poskytuje (pozícia, začiatok, koniec, čas poslednej aktualizácie, posun `TryChangePlaybackPosition`), ale len ak to prehrávač hlási: YouTube v Chrome áno, niektoré weby nie, živé streamy nemajú dĺžku.
 
