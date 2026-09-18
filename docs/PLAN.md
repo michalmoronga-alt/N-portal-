@@ -32,7 +32,21 @@ E0 je samostatný technický experiment, nie hotová V1. Kandidát na prvý pou�
 
 ## Etapa AI‑1 — režim AI (schválené 17. 9. 2026)
 
-Tretí režim popri Station a SKP; spúšťa sa pri aktívnom okne Claude alebo Codex. Bočný pás ako v SKP (čas, usage v strede, malý prehrávač), karta „Agenti“ so živým stavom relácií Claude Code a Codexu (pracuje / čaká na teba / hotovo / nečinný), štítok a LED upozornenie naprieč režimami, mini logá. Celá špecifikácia, zdroje dát a kontrakt: [AI-REZIM.md](AI-REZIM.md). **AI‑2 (detail karty potiahnutím) hotové 18. 9. 2026.** Nasleduje AI‑3 (klepnutie prenesie okno relácie dopredu).
+Tretí režim popri Station a SKP; spúšťa sa pri aktívnom okne Claude alebo Codex. Bočný pás ako v SKP (čas, usage v strede, malý prehrávač), karta „Agenti“ so živým stavom relácií Claude Code a Codexu (pracuje / čaká na teba / hotovo / nečinný), štítok a LED upozornenie naprieč režimami, mini logá. Celá špecifikácia, zdroje dát a kontrakt: [AI-REZIM.md](AI-REZIM.md). **AI‑2 (detail karty potiahnutím) hotové 18. 9. 2026.** AI‑3 (klepnutie prenesie okno aplikácie Claude/Codex dopredu; konkrétnu reláciu v záložke bezpečne vybrať nevieme) **odložené** rozhodnutím Michala 18. 9. 2026.
+
+## Etapa H2 — hudba, 2. kolo (plán 18. 9. 2026, čaká na doplnenie Michala)
+
+Stav dnes: hudobný modul (C# `media-worker`) hlási názov, interpreta, zdroj, stav, obrázok a hlasitosť PC; ovláda play/pauza/ďalšia/predošlá a hlasitosť. **Nehlási pozíciu ani dĺžku skladby** a nevie posúvať v skladbe. Windows to cez Media Session poskytuje (pozícia, začiatok, koniec, čas poslednej aktualizácie, posun `TryChangePlaybackPosition`), ale len ak to prehrávač hlási: YouTube v Chrome áno, niektoré weby nie, živé streamy nemajú dĺžku.
+
+| Blok | Čo sa zmení z pohľadu používateľa | Technicky | Náročnosť |
+|---|---|---|---|
+| **H2‑1 Priebeh skladby** | Tenký prúžok priebehu pod názvom skladby v Station (aj vo väčšom prehrávači pri Chrome) a tenká linka v páse SKP/AI; vľavo uplynutý čas, vpravo dĺžka (len v Station). Pri chýbajúcej dĺžke sa prúžok nezobrazí. Plynulý pohyb aj medzi hláseniami. | worker: `GetTimelineProperties()` každú 1 s pri prehrávaní (pozícia, dĺžka, čas hlásenia, rýchlosť); služba: rozšírený `MediaState` (`position`, `duration`, `positionAt`, `rate`); PWA: lokálna interpolácia z `positionAt`. | malá |
+| **H2‑2 Posun v skladbe** | Ťah po prúžku posunie skladbu; počas ťahu bublina s cieľovým časom, posun sa odošle až po pustení (jeden povel). Prúžok je pri dolnom okraji karty, hlasitosť ostáva na hornom okraji, gestá sa nebijú. | worker: povel `seek <ms>` → `TryChangePlaybackPositionAsync`; služba `media.seek`; PWA `ProgressBar` s ťahom (ako `VolumeStrip`, ale bez odosielania počas ťahu). | malá–stredná |
+| **H2‑3 Gestá na obale** | V Station: ťah doľava na obrázku skladby = ďalšia, doprava = predošlá, klepnutie = play/pauza; tlačidlá ostávajú. Krátky vizuálny ohlas (obal sa mierne posunie v smere ťahu) + LED klepnutie. | PWA: zdieľaná detekcia ťahu (`swipe.ts`), oblasť obalu bez horného pásu hlasitosti a dolného prúžku. | malá |
+| **H2‑4 Voliteľné: náhodné poradie a opakovanie** | Dva malé prepínače pri tlačidlách (len ak prehrávač hlási, že ich podporuje). | worker: `IsShuffleActive`, `AutoRepeatMode`, `TryChangeShuffle/AutoRepeat`; veľa prehrávačov ignoruje. | malá, nízka priorita |
+| **H2‑5 UI/UX drobnosti Michala** | *(doplní Michal)* | | |
+
+Poradie: H2‑1 → H2‑2 → H2‑3 (H2‑4 len ak ostane chuť). Jeden worktree `feat/music-2`, blok A (worker + služba) a blok B (PWA) paralelne ako pri AI‑1, kontrakt `MediaState` dohodnutý vopred. Test na PC s YouTube v Chrome (hlási pozíciu) a s webom bez pozície (prúžok skrytý). Zamietnuté ostáva: obrázok skladby ako pozadie celého Station (nízke rozlíšenie obrázkov).
 
 ## Backlog — až po základnom teste
 
@@ -100,7 +114,7 @@ Nehromadiť staré povely; po pustení prsta pohyb zastaviť. Viacprstové gest�
 | Aktivita agentov na kruhoch usage (**hotové 18. 9. 2026**, mock `mock5.html`) | Mimo režimu AI ukazujú kruhy usage (Station veľké, SKP/AI mini) aktivitu daného providera obiehajúcimi bodmi: vždy 2–3 body, vznikajú na hornej hrane z veľkosti 0, po obehu sa hore zmenšia a zmiznú, mierne pulzujú a menia veľkosť, každý má inú rýchlosť. Pracuje = pomalé obiehanie, každý bod drží svoju rýchlosť. Čaká na vstup = body občas plynulo menia smer a rýchlosť (zámerne „chaotické“, nie cirkus) + jemná fialová žiara kruhu. Hotovo = zelené body dobehnú a už sa neobnovia. Pri „obmedziť pohyb“ body stoja, mení sa len farba. Malá etapa, JS animácia len cez transform. |
 | Blokovanie SKP pri neaktívnom SketchUpe (**hotové 18. 9. 2026**) | V ručne uzamknutom SKP: ak sledovanie okna beží a hlási inú aplikáciu než SketchUp, dlaždice zošednú s hláškou „SketchUp nie je aktívne okno“; po kliknutí do SketchUpu sa hneď odomknú. Blokovať len pri preukázateľne bežiacom sledovaní okna (pri výpadku fg‑workera neblokovať). V AUTO režime bez zmeny. Malá etapa. |
 | Ambientný režim (odložené 17. 9.) | Po 5 min bez dotyku stmavnúť, ostanú hodiny a kruhy. |
-| Hudba, 2. kolo (odložené) | Priebeh skladby s posunom ťahom, gestá na obale (ťah = ďalšia/predošlá, klepnutie = play/pauza). |
+| Hudba, 2. kolo | Rozpracované ako etapa H2 vyššie. |
 
 Neplánovať zatiaľ editor ľubovoľných makier, druhý zber usage, presné formuláre rozmerov ani gestá upravujúce geometriu. Funkcie pridávať podľa reálnej potreby.
 
