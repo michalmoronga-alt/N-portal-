@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<title>N-portal – mock: equalizer v prehrávači</title>
+<style>
+  :root{color-scheme:dark;--text:#e9eef7;--muted:#98a3b6;--blue:#3d7de0;--blue2:#5b95f0;--edge:rgba(255,255,255,.14);--glass:rgba(255,255,255,.06);--r:22px;--ease:cubic-bezier(.2,.8,.2,1)}
+  *{box-sizing:border-box}
+  html{height:100%;background:#161a1f}
+  body{height:100%;margin:0;color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;user-select:none;overflow:hidden}
+  .bg{position:fixed;inset:0;z-index:-1;background:linear-gradient(120deg,#15181c 0%,#22282f 35%,#2a3440 60%,#1a1f26 100%)}
+  .bg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 30%;opacity:0;transition:opacity 1s}
+  .bg img.ok{opacity:1}
+  .bg::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,13,18,.05),rgba(10,13,18,.3))}
+  .glass{background:var(--glass);border:1px solid var(--edge);backdrop-filter:blur(18px) saturate(1.2);-webkit-backdrop-filter:blur(18px) saturate(1.2);box-shadow:0 12px 30px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.12)}
+  .screen{position:fixed;inset:0;display:grid;grid-template-columns:.78fr 1fr 1.35fr;gap:2vw;padding:2vh 12px}
+  .card{border-radius:var(--r);position:relative;overflow:hidden}
+  .clock{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+  .clock .time{font-size:22vh;line-height:.82;font-weight:700;letter-spacing:-.04em}
+  .clock .day{margin-top:2.6vh;font-size:5vh;font-weight:600}.clock .date{margin-top:.6vh;font-size:3vh;color:var(--muted)}
+  .usage{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:3vh}
+  /* hudobná karta ako v Station */
+  .music{display:flex;flex-direction:column;justify-content:flex-end;padding:2.5vh 3vw;gap:1vh;isolation:isolate}
+  .music .cover{position:absolute;inset:0;z-index:-3;background:url(bg.jpg) center/cover no-repeat;transform:scale(1.08);filter:saturate(1.05)}
+  .music .shade{position:absolute;inset:0;z-index:-2;background:linear-gradient(180deg,rgba(22,26,31,.1) 0%,rgba(22,26,31,.55) 45%,rgba(22,26,31,.93) 100%)}
+  /* equalizer: nad obrázkom aj tmavým prechodom, pod textom; vychádza z prúžku smerom hore */
+  .eq{position:absolute;left:0;bottom:0;width:100%;height:62%;z-index:-1;pointer-events:none;opacity:var(--eqo,.7);filter:blur(var(--eqb,3px))}
+  .music .title{font-size:4vh;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 8px rgba(0,0,0,.6)}
+  .music .artist{font-size:2.6vh;color:var(--text);opacity:.85}.music .src{font-size:2.1vh;color:var(--muted)}
+  .prog-wrap{margin-top:1.6vh}.prog{height:.8vh;border-radius:999px;background:rgba(255,255,255,.18);overflow:hidden}.prog b{display:block;height:100%;width:38%;border-radius:999px;background:rgba(255,255,255,.85)}
+  .times{display:flex;justify-content:space-between;font-size:2vh;color:var(--muted);line-height:1.3}
+  .ctrl{display:flex;justify-content:space-evenly;align-items:center;margin-top:1vh}
+  .ctrl span{width:9vh;height:9vh;display:flex;align-items:center;justify-content:center;font-size:4.4vh;color:rgba(255,255,255,.85)}
+  .ctrl span.main{width:12vh;height:12vh;font-size:7.5vh;color:#fff}
+  .ctl{position:fixed;right:10px;bottom:10px;z-index:9;display:flex;gap:6px;padding:6px 8px;border-radius:14px;flex-wrap:wrap;max-width:62vw;justify-content:flex-end;align-items:center}
+  .ctl button{font:inherit;font-size:1.9vh;color:var(--muted);background:transparent;border:1px solid var(--edge);border-radius:999px;padding:.5vh 1.4vw}
+  .ctl button.on{color:#fff;background:var(--blue);border-color:var(--blue2)}
+  .ctl .lbl{font-size:1.8vh;color:var(--muted);margin:0 2px 0 8px}
+  .ctl input[type=range]{width:12vw}
+  .ctl.hide{display:none}
+</style>
+</head>
+<body>
+<div class="bg"><img src="bg.jpg" alt="" onload="this.classList.add('ok')" /></div>
+<div class="screen">
+  <section class="card glass clock"><div class="time">00<br>12</div><div class="day">Sobota</div><div class="date">19. september 2026</div></section>
+  <section class="card glass usage">(usage)</section>
+  <section class="card glass music">
+    <div class="cover"></div>
+    <canvas class="eq" id="eq"></canvas>
+    <div class="shade"></div>
+    <div class="title">SOUNDYXI – VIP Flow (Club Banger)</div>
+    <div class="artist">SOUNDYXI</div>
+    <div class="src">Chrome · hrá</div>
+    <div class="prog-wrap"><div class="prog"><b></b></div><div class="times"><span>1:00</span><span>3:07</span></div></div>
+    <div class="ctrl"><span>⏮</span><span class="main">⏸</span><span>⏭</span></div>
+  </section>
+</div>
+
+<div class="ctl glass" id="ctl">
+  <span class="lbl">Tvar:</span><button data-v="A" class="on">A žiara</button><button data-v="B">B čiary</button>
+  <span class="lbl">Hudba:</span><button data-m="play" class="on">hrá</button><button data-m="quiet">ticho</button>
+  <span class="lbl">Sila</span><input type="range" id="op" min="10" max="100" value="70">
+  <span class="lbl">Rozmazanie</span><input type="range" id="bl" min="0" max="14" value="3">
+  <button id="hide">skryť</button>
+</div>
+
+<script>
+// ---------- simulácia úrovne zvuku (v ostrej verzii príde z Windows ~20× za s) ----------
+// level 0–1: pomalá obálka + „údery“ ~ 128 BPM, v tichu klesá k 0.
+const state = { variant: 'A', playing: true };
+let level = 0, env = 0, lastBeat = 0;
+function simLevel(t) {
+  if (!state.playing) { level += (0 - level) * 0.08; return level; }
+  const bpm = 128, beat = 60 / bpm;
+  if (t - lastBeat > beat) { lastBeat += beat; if (t - lastBeat > beat) lastBeat = t; env = 0.75 + Math.random() * 0.25; }
+  env *= 0.94; // dozvuk úderu
+  const target = 0.28 + env * 0.55 + Math.sin(t * 1.7) * 0.06 + Math.sin(t * 5.3) * 0.04;
+  level += (target - level) * 0.35;
+  return Math.max(0, Math.min(1, level));
+}
+
+// ---------- vykreslenie ----------
+const cv = document.getElementById('eq'); const ctx = cv.getContext('2d');
+const N = 34; // stĺpce (A)
+const bars = Array.from({ length: N }, (_, i) => ({ v: 0, seed: Math.random() * 6.28, spd: 0.7 + Math.random() * 1.1 }));
+const lines = [0, 1, 2, 3].map(i => ({ ph: i * 1.3, spd: 0.6 + i * 0.25, amp: 1 - i * 0.18 }));
+let smooth = 0; // vyhladená úroveň pre pomalé pohyby
+
+function resize() { const r = cv.getBoundingClientRect(); cv.width = Math.round(r.width); cv.height = Math.round(r.height); }
+resize(); addEventListener('resize', resize);
+
+function drawA(t, lv, W, H) {
+  // „polárna žiara“: mäkké zvislé stĺpce s rôznou výškou, biele jadro, antracitový tieň vedľa (hĺbka)
+  const gap = W / N, bw = gap * 0.62;
+  for (let i = 0; i < N; i++) {
+    const b = bars[i];
+    const center = 1 - Math.abs(i - (N - 1) / 2) / ((N - 1) / 2); // v strede vyššie
+    const noise = 0.55 + 0.45 * Math.sin(t * b.spd + b.seed) * Math.sin(t * 0.37 + b.seed * 2);
+    const target = lv * (0.35 + 0.65 * center) * noise;
+    b.v += (target - b.v) * 0.18;
+    const h = Math.max(2, b.v * H * 0.95);
+    const x = i * gap + (gap - bw) / 2;
+    // antracitový tieň mierne vpravo a nižšie
+    let g = ctx.createLinearGradient(0, H - h, 0, H);
+    g.addColorStop(0, 'rgba(30,34,40,0)'); g.addColorStop(0.5, 'rgba(30,34,40,.55)'); g.addColorStop(1, 'rgba(30,34,40,.75)');
+    ctx.fillStyle = g; ctx.fillRect(x + bw * 0.35, H - h * 0.92, bw, h * 0.92);
+    // biele jadro
+    g = ctx.createLinearGradient(0, H - h, 0, H);
+    g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.35, 'rgba(255,255,255,.55)'); g.addColorStop(1, 'rgba(255,255,255,.9)');
+    ctx.fillStyle = g; ctx.fillRect(x, H - h, bw, h);
+  }
+}
+function drawB(t, lv, W, H) {
+  // vlniace sa čiary: 4 krivky, amplitúda podľa úrovne, biele s antracitovým dvojníkom (hĺbka)
+  const base = H * 0.55, steps = 90;
+  for (const [ci, ln] of lines.entries()) {
+    const amp = lv * H * 0.42 * ln.amp;
+    for (const pass of [0, 1]) {
+      ctx.beginPath();
+      for (let s = 0; s <= steps; s++) {
+        const u = s / steps, x = u * W;
+        const envl = Math.sin(u * Math.PI) ** 0.8; // na krajoch stlmené
+        const y = base - envl * amp * (Math.sin(u * 6.28 * (1.2 + ci * 0.35) + t * ln.spd + ln.ph) * 0.7 + Math.sin(u * 6.28 * 3.1 + t * ln.spd * 1.9 + ln.ph) * 0.3) + (pass ? 0 : 6);
+        s ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      ctx.lineWidth = pass ? 2.2 - ci * 0.3 : 4;
+      ctx.strokeStyle = pass ? `rgba(255,255,255,${0.85 - ci * 0.17})` : 'rgba(30,34,40,.6)';
+      ctx.stroke();
+    }
+  }
+}
+let last = performance.now();
+function frame(now) {
+  const t = now / 1000, lv = simLevel(t); smooth += (lv - smooth) * 0.12;
+  const W = cv.width, H = cv.height; ctx.clearRect(0, 0, W, H);
+  (state.variant === 'A' ? drawA : drawB)(t, state.variant === 'A' ? lv : smooth, W, H);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ---------- ovládanie ----------
+const ctl = document.getElementById('ctl'), music = document.querySelector('.music');
+ctl.querySelectorAll('button[data-v]').forEach(b => b.onclick = () => { state.variant = b.dataset.v; ctl.querySelectorAll('button[data-v]').forEach(x => x.classList.toggle('on', x === b)); });
+ctl.querySelectorAll('button[data-m]').forEach(b => b.onclick = () => { state.playing = b.dataset.m === 'play'; ctl.querySelectorAll('button[data-m]').forEach(x => x.classList.toggle('on', x === b)); });
+document.getElementById('op').oninput = (e) => music.style.setProperty('--eqo', e.target.value / 100);
+document.getElementById('bl').oninput = (e) => music.style.setProperty('--eqb', e.target.value + 'px');
+document.getElementById('hide').onclick = () => ctl.classList.add('hide');
+let lastTap = 0; document.addEventListener('pointerdown', () => { const n = Date.now(); if (n - lastTap < 350) ctl.classList.remove('hide'); lastTap = n; });
+</script>
+</body>
+</html>
