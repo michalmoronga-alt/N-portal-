@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-<title>N-portal – mock: detaily klepnutím</title>
+<title>N-portal – mock: detaily klepnutím (v2)</title>
 <style>
-  :root{color-scheme:dark;--text:#e9eef7;--muted:#98a3b6;--blue:#3d7de0;--blue2:#5b95f0;--cyan:#4fc8ff;--red:#c8403f;--green:#34a865;--claude:#d97757;--codex:#9fe0cf;
+  :root{color-scheme:dark;--text:#e9eef7;--muted:#98a3b6;--blue:#3d7de0;--blue2:#5b95f0;--cyan:#4fc8ff;--red:#c8403f;--green:#34a865;--amber:#e6b34a;--claude:#d97757;--codex:#9fe0cf;
     --glass:rgba(255,255,255,.06);--edge:rgba(255,255,255,.14);--r:22px;--ease:cubic-bezier(.2,.8,.2,1);--dur:420ms}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html{height:100%;background:#161a1f}
@@ -22,38 +22,20 @@
   html[data-view=skp] .l-station, html[data-view=station] .l-skp{visibility:hidden;pointer-events:none}
   .card{border-radius:var(--r);position:relative;overflow:hidden}
   svg.i{width:1em;height:1em;display:inline-block;vertical-align:-.15em}
-  /* zavieracie počítadlo 10 s: tenká linka hore na rozvinutom prvku */
-  .timer{position:absolute;top:0;left:0;height:.5vh;width:100%;background:rgba(255,255,255,.35);transform-origin:left;transform:scaleX(1);pointer-events:none;opacity:0}
-  .open .timer{opacity:1;animation:tm 10s linear forwards}
-  @keyframes tm{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+  .tap{cursor:pointer}
 
   /* ===== Station ===== */
-  .station{height:100%;display:grid;grid-template-columns:.78fr 1fr 1.35fr;gap:2vw;transition:grid-template-columns var(--dur) var(--ease)}
-  .station.open-clock{grid-template-columns:1.9fr .8fr 1fr}
-  .station.open-usage{grid-template-columns:.78fr 1.9fr .9fr}
-  .clock{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2vh 1vw;text-align:center;cursor:pointer}
-  .clock .time{font-size:22vh;line-height:.82;font-weight:700;letter-spacing:-.04em;transition:font-size var(--dur) var(--ease)}
-  .clock .day{margin-top:2.6vh;font-size:5vh;font-weight:600}.clock .date{margin-top:.6vh;font-size:3vh;color:var(--muted)}
-  .clock .wx{margin-top:1.2vh;font-size:3.4vh;font-weight:600;display:flex;align-items:center;gap:1vw}.clock .wx small{font-size:2.3vh;color:var(--muted);font-weight:400}
-  /* rozvinuté hodiny: čas menší hore, pod ním týždeň */
-  .station.open-clock .clock{justify-content:flex-start;padding-top:2vh}
-  .station.open-clock .clock .time{font-size:8vh}
-  .station.open-clock .clock .day,.station.open-clock .clock .date{display:none}
-  .week{display:none;width:100%;margin-top:2vh;gap:.6vh;flex-direction:column}
-  .station.open-clock .week{display:flex}
-  .week .row{display:grid;grid-template-columns:5.5vw 3.6vh 1fr auto auto 4.5vw;align-items:center;gap:1.4vw;font-size:2.4vh;padding:.35vh 1vw;border-radius:10px}
-  .week .row:first-child{background:rgba(255,255,255,.08)}
-  .week .row .d{color:var(--muted)}.week .row .lbl{color:var(--muted);font-size:2.3vh}.week .row .hi{font-weight:700}.week .row .lo{color:var(--muted)}.week .row .pp{color:var(--cyan);font-size:2.2vh;min-width:4.5vw;text-align:right}
-  .usage{display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;padding:1vh;cursor:pointer}
-  .ring{position:relative;width:34vh;height:34vh;flex:none;transition:width var(--dur) var(--ease),height var(--dur) var(--ease)}
+  .station{height:100%;display:grid;grid-template-columns:.78fr 1fr 1.35fr;gap:2vw}
+  /* hodiny v2: deň hore, čas v strede, počasie dole len ikona + teplota */
+  .clock{display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:2.6vh 1vw;text-align:center}
+  .clock .day{font-size:4.2vh;font-weight:600;letter-spacing:.02em}.clock .date{font-size:2.5vh;color:var(--muted);margin-top:.3vh}
+  .clock .time{font-size:22vh;line-height:.82;font-weight:700;letter-spacing:-.04em}
+  .clock .wx{display:flex;align-items:center;gap:1.2vw;font-size:5.2vh;font-weight:700}.clock .wx svg{width:8.5vh;height:8.5vh;color:#dfe7f3}
+  .usage{display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;padding:1vh}
+  .ring{position:relative;width:34vh;height:34vh;flex:none}
   .ring>svg{width:100%;height:100%;transform:rotate(-90deg)}.ring circle{fill:none;stroke-linecap:round}.ring .track{stroke:rgba(255,255,255,.08)}
   .ring .lbl{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
   .ring .pct{font-size:8vh;font-weight:700;line-height:1}.ring .name{font-size:3vh;color:var(--muted);margin-top:.6vh}
-  .station.open-usage .usage{flex-direction:row;justify-content:flex-start;gap:2vw;padding:2vh 2vw}
-  .station.open-usage .ring{width:20vh;height:20vh}.station.open-usage .ring .pct{font-size:5vh}
-  .rings{display:contents}.station.open-usage .rings{display:flex;flex-direction:column;gap:2vh}
-  .utab{display:none;flex:1;font-size:2.6vh}.station.open-usage .utab{display:block}
-  .utab table{width:100%;border-collapse:collapse}.utab td{padding:.9vh .6vw;border-bottom:1px solid var(--edge)}.utab td:first-child{color:var(--muted)}.utab td:last-child{text-align:right;font-weight:600}
   .music{display:flex;flex-direction:column;justify-content:flex-end;padding:2.5vh 3vw;gap:1vh;isolation:isolate}
   .music .cover{position:absolute;inset:0;z-index:-2;background:url(bg.jpg) center/cover;transform:scale(1.08)}
   .music .shade{position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(22,26,31,.1),rgba(22,26,31,.55) 45%,rgba(22,26,31,.93))}
@@ -62,30 +44,59 @@
   .times{display:flex;justify-content:space-between;font-size:2vh;color:var(--muted)}
   .ctrl{display:flex;justify-content:space-evenly;margin-top:1vh}.ctrl span{width:9vh;height:9vh;display:flex;align-items:center;justify-content:center;font-size:4.4vh}.ctrl span.main{width:12vh;height:12vh;font-size:7.5vh}
 
-  /* ===== SKP: pás + dlaždice, detail ako panel cez dlaždice ===== */
+  /* ===== SKP ===== */
   .skp{height:100%;display:grid;gap:1.5vw;grid-template-columns:20% 1fr}
   .strip{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4.5vh;padding:1vh 0}
   .strip .t{font-size:9.5vh;font-weight:700;line-height:1;text-shadow:0 2px 14px rgba(0,0,0,.7);letter-spacing:-.03em}
   .strip .dd{font-size:2.5vh;color:var(--muted);margin-top:.8vh;text-align:center}
-  .strip .wx2{font-size:2.6vh;margin-top:.6vh;display:flex;align-items:center;justify-content:center;gap:.6vw}
+  .strip .wx2{font-size:2.8vh;margin-top:.6vh;display:flex;align-items:center;justify-content:center;gap:.6vw}.strip .wx2 svg{width:3.4vh;height:3.4vh}
   .strip .np{font-size:2.6vh;color:var(--muted);text-align:center;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.strip .np b{color:var(--text)}
   .strip .mus{display:flex;gap:1.2vw;justify-content:center}.strip .mus span{width:9vh;height:9vh;display:flex;align-items:center;justify-content:center;font-size:4.4vh}.strip .mus span.main{width:12vh;height:12vh;font-size:7.5vh}
   .strip .rings2{display:flex;gap:1.4vw}.rw{display:flex;flex-direction:column;align-items:center;gap:.5vh}.rw .ring{width:13vh;height:13vh}.rw .ring .pct{font-size:3.2vh}.rw .name{font-size:2.4vh;color:var(--muted)}
-  .strip>*{cursor:pointer;border-radius:14px;padding:.6vh 1vw;transition:background .2s}
-  .strip>.sel{background:rgba(61,125,224,.25);box-shadow:0 0 0 1px rgba(91,149,240,.6)}
-  .skp-main{position:relative;min-height:0}
+  .strip>*{border-radius:14px;padding:.6vh 1vw}
   .grid{height:100%;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(2,1fr);gap:1.6vw}
-  .tile{border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2vh;font-size:3vh;font-weight:600}
-  .tile .ic{font-size:6vh;opacity:.8}
-  /* overlay panel cez dlaždice */
-  .ov{position:absolute;inset:0;border-radius:var(--r);opacity:0;transform:translateX(-4%) scale(.98);pointer-events:none;transition:opacity .28s var(--ease),transform .38s var(--ease);background:rgba(16,19,24,.82);border:1px solid var(--edge);backdrop-filter:blur(18px);padding:2.5vh 2.5vw;display:flex;flex-direction:column;overflow:hidden}
+  .tile{border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2vh;font-size:3vh;font-weight:600}.tile .ic{font-size:6vh;opacity:.8}
+
+  /* ===== detail cez celú obrazovku (pod horným pásom) ===== */
+  .ov{position:absolute;inset:0;z-index:5;border-radius:var(--r);opacity:0;transform:translateY(3%) scale(.985);pointer-events:none;transition:opacity .3s var(--ease),transform .45s var(--ease);background:rgba(14,17,22,.86);border:1px solid var(--edge);backdrop-filter:blur(20px);display:grid;grid-template-columns:1fr 18%;overflow:hidden}
   .ov.open{opacity:1;transform:none;pointer-events:auto}
-  .ov h3{margin:0 0 1.5vh;font-size:3.2vh;font-weight:600;display:flex;align-items:center;gap:1vw}.ov h3 small{color:var(--muted);font-weight:400;font-size:2.3vh;margin-left:auto}
-  .ov .week{display:flex;margin-top:0}.ov .week .row{font-size:2.9vh;padding:.8vh 1vw}
-  .ov .utab{display:block;font-size:3vh;max-width:70%}
-  .ov.player{padding:0}.ov.player .music{height:100%;background:none;border:0}
-  .dim{position:absolute;inset:0;background:rgba(0,0,0,0);pointer-events:none;transition:background .3s}.dim.on{background:rgba(0,0,0,.25);pointer-events:auto}
-  .vol{position:absolute;left:0;right:0;top:0;height:30%;background:linear-gradient(180deg,rgba(91,149,240,.18),transparent);display:flex;align-items:flex-start;justify-content:center;font-size:2.2vh;color:var(--muted);padding-top:1vh;opacity:.9}
+  .ov .body{padding:2.4vh 2.6vw;min-width:0;display:flex;flex-direction:column;gap:1.6vh}
+  /* zámerné miesto vpravo na zavretie */
+  .ov .close{border-left:1px solid var(--edge);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5vh;color:var(--muted);font-size:2.4vh;cursor:pointer;background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.04))}
+  .ov .close b{font-size:9vh;font-weight:300;line-height:1;opacity:.7}
+  .ov .close:active{background:rgba(255,255,255,.08)}
+  .timer{position:absolute;top:0;left:0;height:.5vh;width:100%;background:rgba(255,255,255,.35);transform-origin:left;pointer-events:none;opacity:0}
+  .ov.open .timer{opacity:1;animation:tm 10s linear forwards}@keyframes tm{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+  .ov h3{margin:0;font-size:2.6vh;font-weight:500;color:var(--muted);display:flex;gap:1.2vw;align-items:baseline}.ov h3 b{color:var(--text);font-weight:600;font-size:3vh}
+
+  /* --- počasie: aktuálne | krivka | dni --- */
+  .wnow{display:flex;align-items:center;gap:2.4vw}
+  .wnow .big{display:flex;align-items:center;gap:1.4vw}.wnow .big svg{width:11vh;height:11vh;color:#dfe7f3}.wnow .big .tmp{font-size:9vh;font-weight:700;line-height:1}.wnow .big .tmp small{font-size:3.2vh;color:var(--muted);font-weight:400;margin-left:.4vw}
+  .wnow .desc{font-size:3vh;font-weight:600}.wnow .meta{font-size:2.4vh;color:var(--muted);line-height:1.5}
+  .wnow .place{margin-left:auto;text-align:right}.wnow .place .p{font-size:3.2vh;font-weight:600}.wnow .place .s{font-size:2.3vh;color:var(--muted)}
+  .curve{position:relative;height:17vh;margin:0 1vw}
+  .curve svg{width:100%;height:100%;overflow:visible}
+  .curve .lab{position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none}
+  .curve .lab span{position:absolute;transform:translate(-50%,0);font-size:2.2vh;color:var(--text)}
+  .curve .hrs{position:absolute;left:0;right:0;bottom:-3.2vh;display:flex;justify-content:space-between;font-size:2.1vh;color:var(--muted);padding:0 1%}
+  .days{display:grid;grid-template-columns:repeat(7,1fr);gap:.8vw;margin-top:3.6vh}
+  .days .d{display:flex;flex-direction:column;align-items:center;gap:.6vh;padding:1vh .4vw;border-radius:14px;font-size:2.4vh}
+  .days .d:first-child{background:rgba(255,255,255,.08)}
+  .days .d .n{font-weight:600}.days .d svg{width:5.6vh;height:5.6vh;color:#dfe7f3}.days .d .t{font-size:2.6vh}.days .d .t b{font-weight:700}.days .d .t span{color:var(--muted)}.days .d .pp{font-size:2vh;color:var(--cyan);min-height:2vh}
+
+  /* --- usage: dva vodorovné pásy, kruh + detail vedľa, predel --- */
+  .ubands{display:flex;flex-direction:column;justify-content:center;gap:0;height:100%}
+  .uband{display:flex;align-items:center;gap:3vw;padding:1.8vh 1vw;transform:translateX(-4%) scale(.9);opacity:0;transition:transform .5s var(--ease),opacity .4s}
+  .ov.open .uband{transform:none;opacity:1}.ov.open .uband:nth-child(3){transition-delay:.08s}
+  .uband .ring{width:22vh;height:22vh}.uband .ring .pct{font-size:5.2vh}.uband .ring .name{font-size:2.4vh}
+  .udiv{height:1px;background:var(--edge);margin:0 2vw}
+  .ud{display:grid;grid-template-columns:auto auto;gap:.6vh 3vw;font-size:2.7vh;align-items:baseline}
+  .ud .k{color:var(--muted)}.ud .v{font-weight:600}.ud .v.warn{color:#ff9d9c}.ud .h{grid-column:1/3;font-size:3.2vh;font-weight:600;display:flex;align-items:center;gap:1vw;margin-bottom:.4vh}
+  .ud .h svg{width:1em;height:1em}
+
+  /* --- prehrávač (SKP/AI): celá karta --- */
+  .ov.player .body{padding:0}.ov.player .music{height:100%;border-radius:var(--r) 0 0 var(--r)}
+  .vol{position:absolute;left:0;right:0;top:0;height:30%;background:linear-gradient(180deg,rgba(91,149,240,.18),transparent);display:flex;align-items:flex-start;justify-content:center;font-size:2.2vh;color:var(--muted);padding-top:1vh}
 
   .ctl{position:fixed;right:10px;bottom:10px;z-index:9;display:flex;gap:6px;padding:6px 8px;border-radius:14px;align-items:center;background:rgba(20,24,30,.85);border:1px solid var(--edge)}
   .ctl button{font:inherit;font-size:1.9vh;color:var(--muted);background:transparent;border:1px solid var(--edge);border-radius:999px;padding:.5vh 1.4vw}.ctl button.on{color:#fff;background:var(--blue);border-color:var(--blue2)}
@@ -94,31 +105,30 @@
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute"><defs>
-<symbol id="w-sun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M18.7 5.3l-1.8 1.8M7.1 16.9l-1.8 1.8"/></g></symbol>
-<symbol id="w-pc" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.2"/><path d="M8 2.5v1.8M2.5 8h1.8M4.1 4.1l1.3 1.3"/><path d="M9 19h9a3.5 3.5 0 0 0 .4-7 5 5 0 0 0-9.6 1.3A2.9 2.9 0 0 0 9 19z"/></g></symbol>
-<symbol id="w-cl" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.6 1.6A3.2 3.2 0 0 0 7 18z"/></symbol>
-<symbol id="w-rn" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 15h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.6 1.6A3.2 3.2 0 0 0 7 15z"/><path d="M8 18l-1 3M12 18l-1 3M16 18l-1 3"/></g></symbol>
-<symbol id="w-sn" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.6 1.6A3.2 3.2 0 0 0 7 14z"/><path d="M8 18v.1M12 19v.1M16 18v.1M10 21v.1M14 21v.1"/></g></symbol>
-<symbol id="w-th" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.6 1.6A3.2 3.2 0 0 0 7 14z"/><path d="M13 14l-2.5 4h3L11 22"/></g></symbol>
+<symbol id="w-sun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M18.7 5.3l-1.8 1.8M7.1 16.9l-1.8 1.8"/></g></symbol>
+<symbol id="w-pc" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.2"/><path d="M8 2.5v1.8M2.5 8h1.8M4.1 4.1l1.3 1.3"/><path d="M9 19h9a3.5 3.5 0 0 0 .4-7 5 5 0 0 0-9.6 1.3A2.9 2.9 0 0 0 9 19z"/></g></symbol>
+<symbol id="w-cl" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.6 1.6A3.2 3.2 0 0 0 7 18z"/></symbol>
+<symbol id="w-rn" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 15h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.6 1.6A3.2 3.2 0 0 0 7 15z"/><path d="M8 18l-1 3M12 18l-1 3M16 18l-1 3"/></g></symbol>
+<symbol id="w-sn" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.6 1.6A3.2 3.2 0 0 0 7 14z"/><path d="M8 18v.1M12 19v.1M16 18v.1M10 21v.1M14 21v.1"/></g></symbol>
+<symbol id="w-mn" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M14 3a8 8 0 1 0 7 11.5A7 7 0 0 1 14 3z"/></symbol>
+<symbol id="lg-claude" viewBox="0 0 24 24"><g stroke="currentColor" stroke-width="2.6" stroke-linecap="round" fill="none"><line x1="12" y1="2.5" x2="12" y2="8.5"/><line x1="12" y1="15.5" x2="12" y2="21.5"/><line x1="2.5" y1="12" x2="8.5" y2="12"/><line x1="15.5" y1="12" x2="21.5" y2="12"/><line x1="5.3" y1="5.3" x2="9.2" y2="9.2"/><line x1="14.8" y1="14.8" x2="18.7" y2="18.7"/><line x1="18.7" y1="5.3" x2="14.8" y2="9.2"/><line x1="9.2" y1="14.8" x2="5.3" y2="18.7"/></g></symbol>
+<symbol id="lg-codex" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"><rect x="9.6" y="2.4" width="4.8" height="11" rx="2.4"/><rect x="9.6" y="2.4" width="4.8" height="11" rx="2.4" transform="rotate(60 12 12)"/><rect x="9.6" y="2.4" width="4.8" height="11" rx="2.4" transform="rotate(120 12 12)"/><rect x="9.6" y="2.4" width="4.8" height="11" rx="2.4" transform="rotate(180 12 12)"/><rect x="9.6" y="2.4" width="4.8" height="11" rx="2.4" transform="rotate(240 12 12)"/><rect x="9.6" y="2.4" width="4.8" height="11" rx="2.4" transform="rotate(300 12 12)"/></g></symbol>
 </defs></svg>
 <div class="bg"><img src="bg.jpg" alt="" onload="this.classList.add('ok')" /></div>
 
 <div class="screen">
-  <header class="bar"><span class="dot"></span><span class="state" id="st">SketchUp: skrinka.skp · výber: 1</span><span class="mode" id="md">AUTO · Station</span></header>
+  <header class="bar"><span class="dot"></span><span class="state">SketchUp: skrinka.skp · výber: 1</span><span class="mode" id="md">AUTO · Station</span></header>
   <main class="main">
-    <!-- ===== Station ===== -->
-    <div class="layer l-station"><div class="station" id="station">
-      <section class="card glass clock" data-x="clock"><div class="timer"></div>
-        <div class="time">21<br>04</div><div class="day">Sobota</div><div class="date">19. september 2026</div>
-        <div class="wx"><svg class="i"><use href="#w-pc"/></svg>12 ° <small>polooblačno</small></div>
-        <div class="week" id="week1"></div>
+    <!-- Station -->
+    <div class="layer l-station"><div class="station">
+      <section class="card glass clock tap" data-o="weather">
+        <div><div class="day">Sobota</div><div class="date">19. september</div></div>
+        <div class="time">21<br>04</div>
+        <div class="wx"><svg><use href="#w-pc"/></svg>12 °</div>
       </section>
-      <section class="card glass usage" data-x="usage"><div class="timer"></div>
-        <div class="rings">
-          <div class="ring"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="44" stroke-width="7"/><circle cx="50" cy="50" r="44" stroke-width="7" stroke="var(--red)" stroke-dasharray="276.5" stroke-dashoffset="0"/></svg><div class="lbl"><div class="pct">100%</div><div class="name">Codex</div></div></div>
-          <div class="ring"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="44" stroke-width="7"/><circle cx="50" cy="50" r="44" stroke-width="7" stroke="var(--blue)" stroke-dasharray="276.5" stroke-dashoffset="138"/></svg><div class="lbl"><div class="pct">50%</div><div class="name">Claude</div></div></div>
-        </div>
-        <div class="utab"><table><tr><td>Codex týždeň</td><td>100 % · reset so 10:25</td></tr><tr><td>Claude týždeň</td><td>50 % · reset ut 10:00</td></tr><tr><td>Claude 5h okno</td><td>42 % · reset o 53 min</td></tr><tr><td>Stav účtu</td><td>ok</td></tr><tr><td>Dáta</td><td>pred 2 min · LIVE</td></tr></table></div>
+      <section class="card glass usage tap" data-o="usage">
+        <div class="ring"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="44" stroke-width="7"/><circle cx="50" cy="50" r="44" stroke-width="7" stroke="var(--red)" stroke-dasharray="276.5" stroke-dashoffset="0"/></svg><div class="lbl"><div class="pct">100%</div><div class="name">Codex</div></div></div>
+        <div class="ring"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="44" stroke-width="7"/><circle cx="50" cy="50" r="44" stroke-width="7" stroke="var(--blue)" stroke-dasharray="276.5" stroke-dashoffset="138"/></svg><div class="lbl"><div class="pct">50%</div><div class="name">Claude</div></div></div>
       </section>
       <section class="card glass music"><div class="cover"></div><div class="shade"></div>
         <div class="title">STOSLIV, IRIAS – i can feel</div><div class="artist">STOSLIV</div><div class="src">Chrome · hrá</div>
@@ -127,61 +137,88 @@
       </section>
     </div></div>
 
-    <!-- ===== SKP (rovnako aj AI) ===== -->
+    <!-- SKP / AI -->
     <div class="layer l-skp"><div class="skp">
-      <aside class="strip" id="strip">
-        <div data-o="clock"><div class="t">21:04</div><div class="dd">Sobota 19. september</div><div class="wx2"><svg class="i"><use href="#w-pc"/></svg>12 °</div></div>
-        <div data-o="player"><div class="np">♪ <b>STOSLIV, IRIAS – i can feel</b></div><div class="mus"><span>⏮</span><span class="main">⏸</span><span>⏭</span></div></div>
-        <div data-o="usage" class="rings2">
+      <aside class="strip">
+        <div class="tap" data-o="weather"><div class="t">21:04</div><div class="dd">Sobota 19. september</div><div class="wx2"><svg><use href="#w-pc"/></svg>12 °</div></div>
+        <div class="tap" data-o="player"><div class="np">♪ <b>STOSLIV, IRIAS – i can feel</b></div><div class="mus"><span>⏮</span><span class="main">⏸</span><span>⏭</span></div></div>
+        <div class="tap rings2" data-o="usage">
           <div class="rw"><div class="ring"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="44" stroke-width="9"/><circle cx="50" cy="50" r="44" stroke-width="9" stroke="var(--red)" stroke-dasharray="276.5" stroke-dashoffset="0"/></svg><div class="lbl"><div class="pct">100%</div></div></div><div class="name">Codex</div></div>
           <div class="rw"><div class="ring"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="44" stroke-width="9"/><circle cx="50" cy="50" r="44" stroke-width="9" stroke="var(--blue)" stroke-dasharray="276.5" stroke-dashoffset="138"/></svg><div class="lbl"><div class="pct">50%</div></div></div><div class="name">Claude</div></div>
         </div>
       </aside>
-      <div class="skp-main" id="skpmain">
-        <div class="grid">
-          <div class="tile glass"><div class="ic">◎</div>Zamerať výber</div><div class="tile glass"><div class="ic">✥</div>Pohľad</div><div class="tile glass"><div class="ic">◈</div>ISO</div><div class="tile glass"><div class="ic">✚</div>X‑Ray</div>
-          <div class="tile glass"><div class="ic">↶</div>Predošlý pohľad</div><div class="tile glass"><div class="ic">▣</div>Celý model</div><div class="tile glass"><div class="ic">◫</div>Izolovať</div><div class="tile glass"><div class="ic">◌</div>Skryté objekty</div>
-        </div>
-        <div class="dim" id="dim"></div>
-        <div class="ov" id="ov-clock"><div class="timer"></div><h3><svg class="i"><use href="#w-pc"/></svg>Liptovský Mikuláš · 12 ° polooblačno <small>Open‑Meteo · pred 4 min</small></h3><div class="week" id="week2"></div></div>
-        <div class="ov" id="ov-usage"><div class="timer"></div><h3>Usage <small>NOXUN AI Usage · pred 2 min · LIVE</small></h3><div class="utab"><table><tr><td>Codex týždeň</td><td>100 % · reset so 10:25</td></tr><tr><td>Claude týždeň</td><td>50 % · reset ut 10:00</td></tr><tr><td>Claude 5h okno</td><td>42 % · reset o 53 min</td></tr><tr><td>Stav účtu</td><td>ok</td></tr></table></div></div>
-        <div class="ov player" id="ov-player"><div class="timer"></div><section class="card music" style="height:100%"><div class="cover"></div><div class="shade"></div><div class="vol">▲ hlasitosť PC ťahom po hornom okraji</div>
-          <div class="title">STOSLIV, IRIAS – i can feel</div><div class="artist">STOSLIV</div><div class="src">Chrome · hrá</div>
-          <div class="prog"><b></b></div><div class="times"><span>1:07</span><span>2:51</span></div>
-          <div class="ctrl"><span>⏮</span><span class="main">⏸</span><span>⏭</span></div></section></div>
+      <div class="grid">
+        <div class="tile glass"><div class="ic">◎</div>Zamerať výber</div><div class="tile glass"><div class="ic">✥</div>Pohľad</div><div class="tile glass"><div class="ic">◈</div>ISO</div><div class="tile glass"><div class="ic">✚</div>X‑Ray</div>
+        <div class="tile glass"><div class="ic">↶</div>Predošlý pohľad</div><div class="tile glass"><div class="ic">▣</div>Celý model</div><div class="tile glass"><div class="ic">◫</div>Izolovať</div><div class="tile glass"><div class="ic">◌</div>Skryté objekty</div>
       </div>
     </div></div>
+
+    <!-- ===== detaily cez celú obrazovku ===== -->
+    <div class="ov" id="ov-weather"><div class="timer"></div>
+      <div class="body">
+        <div class="wnow">
+          <div class="big"><svg><use href="#w-pc"/></svg><div class="tmp">12<small>°C</small></div></div>
+          <div><div class="desc">Polooblačno</div><div class="meta">Zrážky 10 % · Vlhkosť 84 %<br>Vietor 2 km/h</div></div>
+          <div class="place"><div class="p">Liptovský Mikuláš</div><div class="s">sobota 21:04 · Open‑Meteo · pred 4 min</div></div>
+        </div>
+        <div class="curve" id="curve"></div>
+        <div class="days" id="days"></div>
+      </div>
+      <div class="close"><b>›</b>zavrieť</div>
+    </div>
+
+    <div class="ov" id="ov-usage"><div class="timer"></div>
+      <div class="body"><div class="ubands">
+        <div class="uband">
+          <div class="ring"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="44" stroke-width="8"/><circle cx="50" cy="50" r="44" stroke-width="8" stroke="var(--red)" stroke-dasharray="276.5" stroke-dashoffset="0"/></svg><div class="lbl"><div class="pct">100%</div><div class="name">Codex</div></div></div>
+          <div class="ud"><div class="h"><svg style="color:var(--codex)"><use href="#lg-codex"/></svg>Codex · týždeň</div><span class="k">Spotrebované</span><span class="v warn">100 % · vyčerpané</span><span class="k">Reset týždňa</span><span class="v">sobota 10:25 · o 13 h 21 min</span><span class="k">Tarifa</span><span class="v">Pro lite</span></div>
+        </div>
+        <div class="udiv"></div>
+        <div class="uband">
+          <div class="ring"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="44" stroke-width="8"/><circle cx="50" cy="50" r="44" stroke-width="8" stroke="var(--blue)" stroke-dasharray="276.5" stroke-dashoffset="138"/><circle class="track" cx="50" cy="50" r="33" stroke-width="6"/><circle cx="50" cy="50" r="33" stroke-width="6" stroke="var(--cyan)" stroke-dasharray="207.3" stroke-dashoffset="120"/></svg><div class="lbl"><div class="pct">50%</div><div class="name">Claude</div></div></div>
+          <div class="ud"><div class="h"><svg style="color:var(--claude)"><use href="#lg-claude"/></svg>Claude · týždeň a 5h okno</div><span class="k">Týždeň</span><span class="v">50 % · reset utorok 10:00</span><span class="k">5h okno</span><span class="v">42 % · reset o 53 min</span><span class="k">Stav účtu</span><span class="v">ok · dáta pred 2 min</span></div>
+        </div>
+      </div></div>
+      <div class="close"><b>›</b>zavrieť</div>
+    </div>
+
+    <div class="ov player" id="ov-player"><div class="timer"></div>
+      <div class="body"><section class="card music"><div class="cover"></div><div class="shade"></div><div class="vol">▲ hlasitosť PC ťahom po hornom okraji</div>
+        <div class="title">STOSLIV, IRIAS – i can feel</div><div class="artist">STOSLIV</div><div class="src">Chrome · hrá</div>
+        <div class="prog"><b></b></div><div class="times"><span>1:07</span><span>2:51</span></div>
+        <div class="ctrl"><span>⏮</span><span class="main">⏸</span><span>⏭</span></div></section></div>
+      <div class="close"><b>›</b>zavrieť</div>
+    </div>
   </main>
 </div>
 
 <div class="ctl" id="ctl"><span class="lbl">Pohľad:</span><button data-v="station" class="on">Station</button><button data-v="skp">SKP / AI</button><button id="hide">skryť</button></div>
 
 <script>
-// týždeň (pevné dáta)
-const days=[['dnes','pc',14,6,20],['ne','sun',17,5,0],['po','rn',13,8,80],['ut','rn',11,7,90],['st','cl',12,6,30],['št','pc',15,5,10],['pi','sun',18,7,0]];
-const lab={sun:'jasno',pc:'polooblačno',cl:'zamračené',rn:'dážď',sn:'sneh',th:'búrka'};
-const week=days.map(([d,c,hi,lo,pp])=>`<div class="row"><span class="d">${d}</span><svg class="i"><use href="#w-${c}"/></svg><span class="lbl">${lab[c]}</span><span class="hi">${hi} °</span><span class="lo">${lo} °</span><span class="pp">${pp?pp+' %':''}</span></div>`).join('');
-document.getElementById('week1').innerHTML=week;document.getElementById('week2').innerHTML=week;
+// ---------- dáta počasia (pevné) ----------
+const hours=[['21:00',12],['0:00',9],['3:00',7],['6:00',7],['9:00',12],['12:00',19],['15:00',22],['18:00',18],['21:00',11]];
+const days=[['dnes','pc',14,6,20],['ne','sun',17,5,0],['po','rn',13,8,80],['ut','rn',11,6,90],['st','cl',12,6,30],['št','pc',15,5,10],['pi','sun',18,7,0]];
+// krivka teploty: hladká čiara s výplňou (jemná biela), hodnoty nad bodmi, hodiny pod
+(function(){const W=1000,H=100,mn=Math.min(...hours.map(h=>h[1]))-3,mx=Math.max(...hours.map(h=>h[1]))+3;
+  const pts=hours.map((h,i)=>[i/(hours.length-1)*W,H-(h[1]-mn)/(mx-mn)*H]);
+  let d=`M${pts[0][0]},${pts[0][1]}`;for(let i=1;i<pts.length;i++){const [x0,y0]=pts[i-1],[x1,y1]=pts[i],c=(x0+x1)/2;d+=` C${c},${y0} ${c},${y1} ${x1},${y1}`;}
+  const el=document.getElementById('curve');
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e6b34a" stop-opacity=".35"/><stop offset="1" stop-color="#e6b34a" stop-opacity="0"/></linearGradient></defs><path d="${d} L${W},${H} L0,${H} Z" fill="url(#g)"/><path d="${d}" fill="none" stroke="#e6b34a" stroke-width="2.5" vector-effect="non-scaling-stroke"/></svg>
+  <div class="lab">${pts.map((p,i)=>`<span style="left:${p[0]/W*100}%;top:calc(${p[1]/H*100}% - 3.2vh)">${hours[i][1]}°</span>`).join('')}</div>
+  <div class="hrs">${hours.map(h=>`<span>${h[0]}</span>`).join('')}</div>`;})();
+document.getElementById('days').innerHTML=days.map(([n,c,hi,lo,pp])=>`<div class="d"><span class="n">${n}</span><svg><use href="#w-${c}"/></svg><div class="t"><b>${hi}°</b> <span>${lo}°</span></div><span class="pp">${pp?pp+' %':''}</span></div>`).join('');
 
-// ---------- Station: klepnutie roztiahne kartu, 10 s alebo klepnutie mimo zavrie ----------
-const station=document.getElementById('station');let openX=null,tmr=null;
-function closeX(){station.classList.remove('open-clock','open-usage');station.querySelectorAll('.open').forEach(e=>e.classList.remove('open'));openX=null;clearTimeout(tmr);}
-function armTimer(fn){clearTimeout(tmr);tmr=setTimeout(fn,10000);}
-station.querySelectorAll('[data-x]').forEach(el=>el.addEventListener('pointerdown',e=>{e.stopPropagation();const x=el.dataset.x;if(openX===x){closeX();return;}closeX();openX=x;station.classList.add('open-'+x);el.classList.add('open');armTimer(closeX);}));
-document.querySelector('.l-station').addEventListener('pointerdown',()=>{if(openX)closeX();});
-
-// ---------- SKP: klepnutie na prvok pásu vysunie panel cez dlaždice ----------
-const strip=document.getElementById('strip'),dim=document.getElementById('dim');let openO=null,tmr2=null;
-function closeO(){document.querySelectorAll('.ov').forEach(o=>o.classList.remove('open'));strip.querySelectorAll('.sel').forEach(s=>s.classList.remove('sel'));dim.classList.remove('on');openO=null;clearTimeout(tmr2);}
-function arm2(){clearTimeout(tmr2);tmr2=setTimeout(closeO,10000);}
-strip.querySelectorAll('[data-o]').forEach(el=>el.addEventListener('pointerdown',e=>{e.stopPropagation();const o=el.dataset.o;if(openO===o){closeO();return;}closeO();openO=o;el.classList.add('sel');dim.classList.add('on');const ov=document.getElementById('ov-'+o);ov.classList.add('open');arm2();}));
-// dotyk v otvorenom paneli (napr. prehrávač) predĺži čas; klepnutie mimo (stmavené dlaždice) len zavrie
-document.querySelectorAll('.ov').forEach(ov=>ov.addEventListener('pointerdown',e=>{e.stopPropagation();if(openO)arm2();}));
-dim.addEventListener('pointerdown',e=>{e.stopPropagation();closeO();});
+// ---------- otváranie / zatváranie: klepnutie na prvok otvorí, 10 s alebo miesto vpravo zavrie ----------
+let openO=null,tmr=null;
+function closeO(){document.querySelectorAll('.ov').forEach(o=>o.classList.remove('open'));openO=null;clearTimeout(tmr);}
+function arm(){clearTimeout(tmr);tmr=setTimeout(closeO,10000);}
+document.querySelectorAll('[data-o]').forEach(el=>el.addEventListener('pointerdown',e=>{e.stopPropagation();const o=el.dataset.o;closeO();openO=o;document.getElementById('ov-'+o).classList.add('open');arm();}));
+document.querySelectorAll('.ov .close').forEach(c=>c.addEventListener('pointerdown',e=>{e.stopPropagation();closeO();}));
+document.querySelectorAll('.ov .body').forEach(b=>b.addEventListener('pointerdown',e=>{e.stopPropagation();if(openO)arm();}));
 
 // ---------- ovládanie mocku ----------
 const ctl=document.getElementById('ctl');
-ctl.querySelectorAll('button[data-v]').forEach(b=>b.onclick=()=>{document.documentElement.dataset.view=b.dataset.v;ctl.querySelectorAll('button[data-v]').forEach(x=>x.classList.toggle('on',x===b));document.getElementById('md').textContent=b.dataset.v==='skp'?'AUTO · SKP':'AUTO · Station';closeX();closeO();});
+ctl.querySelectorAll('button[data-v]').forEach(b=>b.onclick=()=>{document.documentElement.dataset.view=b.dataset.v;ctl.querySelectorAll('button[data-v]').forEach(x=>x.classList.toggle('on',x===b));document.getElementById('md').textContent=b.dataset.v==='skp'?'AUTO · SKP':'AUTO · Station';closeO();});
 document.getElementById('hide').onclick=()=>ctl.classList.add('hide');let lt=0;document.addEventListener('pointerdown',()=>{const n=Date.now();if(n-lt<350)ctl.classList.remove('hide');lt=n;},true);
 </script>
 </body>
