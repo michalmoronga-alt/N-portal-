@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import SideStrip from './SideStrip';
-import type { Ack, AgentsState, MediaState, SketchUpState, UsageState } from './service';
+import type { Ack, AgentsState, MediaState, SketchUpState, UsageState, WeatherState } from './service';
 import { useClock } from './time';
 import { ledTap, ledError } from './ledPulse';
 import SwipeTile, { type SwipeDir } from './SwipeTile';
@@ -17,6 +17,8 @@ interface Props {
   media: MediaState | null;
   /** stav agentov – len na obiehajúce body na mini kruhoch v páse */
   agents: AgentsState | null;
+  /** počasie pre riadok v páse (null = bez spojenia / nedostupné → riadok sa nezobrazí) */
+  weather: WeatherState | null;
   lastAck: Ack | null;
   sendCommand: (action: string) => string | null;
   sendMedia: (a: 'play' | 'pause' | 'toggle' | 'next' | 'prev') => void;
@@ -44,7 +46,7 @@ function buildTiles(s: SketchUpState | null): Tile[] {
   ];
 }
 
-export default function Skp({ online, sketchup, sketchupActive, usage, media, agents, lastAck, sendCommand, sendMedia, active }: Props) {
+export default function Skp({ online, sketchup, sketchupActive, usage, media, agents, weather, lastAck, sendCommand, sendMedia, active }: Props) {
   const now = useClock();
   const [flash, setFlash] = useState<Flash>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -123,7 +125,7 @@ export default function Skp({ online, sketchup, sketchupActive, usage, media, ag
   return (
     <div className="skp">
       {/* zúžený Station: bez rámčeka, priamo na pozadí – zdieľaný s režimom AI */}
-      <SideStrip usage={usage} media={media} agents={online ? agents : null} sendMedia={sendMedia} now={now} active={active} />
+      <SideStrip usage={usage} media={media} agents={online ? agents : null} weather={weather} sendMedia={sendMedia} now={now} active={active} />
 
       <div className="skp-main">
         <div className="grid">

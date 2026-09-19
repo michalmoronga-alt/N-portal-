@@ -1,6 +1,6 @@
 // N-portal – lokálna služba na PC.
 // HTTP: servuje zostavenú PWA z ../app/dist a /api/health.
-// WebSocket /ws?t=<token>: posiela stav po témach (sketchup, usage, media, audio, foreground, agents) a prijíma povely z PWA.
+// WebSocket /ws?t=<token>: posiela stav po témach (sketchup, usage, media, audio, foreground, agents, weather) a prijíma povely z PWA.
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -14,8 +14,9 @@ import { MediaBridge, MEDIA_ACTIONS, type MediaState } from './media.js';
 import { ArtworkBridge } from './artwork.js';
 import { ForegroundBridge } from './foreground.js';
 import { AgentsBridge } from './agents.js';
+import { WeatherBridge } from './weather.js';
 
-const VERSION = '0.8.0';
+const VERSION = '0.9.0';
 const SKETCHUP_POLL_MS = 250;
 const USAGE_POLL_MS = 5000;
 const HEARTBEAT_PUSH_MS = 2000;
@@ -53,6 +54,7 @@ const media = new MediaBridge(log);
 const artwork = new ArtworkBridge(log);
 const foreground = new ForegroundBridge(log);
 const agents = new AgentsBridge(log);
+const weather = new WeatherBridge(cfg.weather, log);
 let lastSketchupFgPid: number | null = null; // relácia SketchUpu, ktorej okno bolo naposledy v popredí
 let sketchup: SketchUpState = buildState(readInstances(), lastSketchupFgPid);
 let usage: UsageState = readUsage();
@@ -83,7 +85,7 @@ const server = http.createServer((req, res) => {
     res.end(
       JSON.stringify({
         ok: true, version: VERSION, time: Date.now(),
-        sketchup, usage, foreground: foreground.state, agents: agents.state,
+        sketchup, usage, foreground: foreground.state, agents: agents.state, weather: weather.state,
         media: { ...mediaPayload(), thumb: media.state.thumb ? '(obrázok)' : null },
         audio: media.audio,
         artwork: artwork.health(),
@@ -140,6 +142,7 @@ wss.on('connection', (ws, req) => {
   ws.send(msg('media', mediaPayload()));
   ws.send(msg('foreground', foreground.state));
   ws.send(msg('agents', agents.state));
+  ws.send(msg('weather', weather.state));
 
   ws.on('message', (data) => {
     let m: ClientMsg;
@@ -249,6 +252,10 @@ setInterval(() => {
 }, 1000);
 agents.start();
 
+// Počasie (W‑1): Open‑Meteo každých 15 min; pri výpadku ostanú posledné dáta so značkou „staré“.
+weather.onChange((s) => broadcast(msg('weather', s)));
+weather.start();
+
 // ---------- štart ----------
 
 function lanAddresses(): string[] {
@@ -268,6 +275,7 @@ server.on('error', (e: NodeJS.ErrnoException) => {
     media.stop();
     foreground.stop();
     agents.stop();
+    weather.stop();
     process.exit(0);
   }
   log(`server chyba: ${e.message}`);
@@ -279,6 +287,7 @@ server.listen(cfg.port, '0.0.0.0', () => {
   console.log(`N-portal služba v${VERSION}  (konfigurácia: ${SERVICE_DIR})`);
   console.log(`PWA:      ${fs.existsSync(APP_DIST) ? APP_DIST : 'NIE JE ZOSTAVENÁ – npm run build v app/'}`);
   console.log(`Usage:    ${fs.existsSync(USAGE_FILE) ? USAGE_FILE : 'súbor usage sa nenašiel – ' + USAGE_FILE}`);
+  console.log(`Počasie:  ${cfg.weather.name} (${cfg.weather.lat}, ${cfg.weather.lon})`);
   for (const ip of lanAddresses()) console.log(`Mobil:    http://${ip}:${cfg.port}/?t=${cfg.token}`);
   console.log(`Lokálne:  http://localhost:${cfg.port}/?t=${cfg.token}`);
   console.log('');
@@ -288,5 +297,6 @@ process.on('SIGINT', () => {
   media.stop();
   foreground.stop();
   agents.stop();
+  weather.stop();
   process.exit(0);
 });

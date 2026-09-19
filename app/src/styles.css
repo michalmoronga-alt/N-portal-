@@ -114,6 +114,12 @@ html.offline .bg img { filter: grayscale(.85) brightness(.8); }
 .time .d { display: block; }
 .day { margin-top: 2.6vh; font-size: 5vh; font-weight: 600; }
 .date { margin-top: .6vh; font-size: 3vh; color: var(--muted); }
+/* počasie pod dátumom; výška je pevná, aby sa pri strate dát hodiny nepohli */
+.wx { margin-top: 1.2vh; height: 4.4vh; display: flex; align-items: center; justify-content: center; gap: 1vw; }
+.wx .wx-ico { font-size: 3.6vh; }
+.wx b { font-size: 3.4vh; font-weight: 700; }
+.wx span { font-size: 2.4vh; color: var(--muted); }
+.wx.stale { opacity: .6; }
 
 .usage { display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; padding: 1vh; touch-action: pan-x; }
 .usage .rings { display: contents; }
@@ -236,6 +242,9 @@ html.reduce .ring.glow::before { animation: none !important; box-shadow: 0 0 18p
 .strip .strip-time { margin-top: 2vh; }
 .strip .t { font-size: 9.5vh; font-weight: 700; line-height: 1; text-align: center; text-shadow: 0 2px 14px rgba(0, 0, 0, .7); letter-spacing: -.03em; white-space: nowrap; }
 .strip .dd { font-size: 2.5vh; color: var(--muted); margin-top: .8vh; text-align: center; white-space: nowrap; }
+.strip .wx-mini { display: flex; align-items: center; justify-content: center; gap: .6vw; margin-top: .6vh; font-size: 2.5vh; white-space: nowrap; }
+.strip .wx-mini .wx-ico { font-size: 2.6vh; }
+.strip .wx-mini.stale { opacity: .6; }
 .strip .player { display: flex; flex-direction: column; align-items: center; gap: .6vh; width: 100%; }
 .strip .np { font-size: 2.6vh; color: var(--muted); text-align: center; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 .5vw; }
 .strip .np b { color: var(--text); font-weight: 600; }

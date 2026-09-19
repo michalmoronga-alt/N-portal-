@@ -88,6 +88,39 @@ export interface UsageState {
   claude: UsageProvider;
   codex: UsageProvider;
 }
+// ---------- počasie (W-1): kontrakt služby, modul service/src/weather.ts ----------
+export interface WeatherCurrent {
+  temp: number; // °C
+  code: number; // WMO kód počasia
+  isDay: boolean;
+  wind: number; // km/h
+  humidity: number; // %
+  precipProb: number; // % – hodinová predpoveď pre práve bežiacu hodinu
+}
+export interface WeatherHour {
+  time: string; // ISO bez zóny v miestnom čase, napr. 2026-09-19T15:00
+  temp: number;
+  code: number;
+  precipProb: number; // %
+}
+export interface WeatherDay {
+  date: string; // YYYY-MM-DD
+  code: number;
+  tmax: number;
+  tmin: number;
+  precipProb: number; // %
+  precipMm: number;
+}
+export interface WeatherState {
+  available: boolean;
+  stale: boolean; // posledné dáta sú staršie než hodina (výpadok siete na PC)
+  updatedAt: number | null;
+  place: string;
+  current: WeatherCurrent | null;
+  /** najbližších 24 hodín od teraz (po hodine) – zatiaľ sa nikde nekreslí, čaká na detail počasia */
+  hourly: WeatherHour[];
+  daily: WeatherDay[];
+}
 export interface MediaState {
   available: boolean;
   workerOk: boolean;
@@ -113,6 +146,7 @@ type ServerMsg =
   | { type: 'media'; ts: number; data: MediaState }
   | { type: 'foreground'; ts: number; data: ForegroundState }
   | { type: 'agents'; ts: number; data: AgentsState }
+  | { type: 'weather'; ts: number; data: WeatherState }
   // úroveň zvuku pre equalizer: ~20× za s a len počas prehrávania, mimo `MediaState`
   | { type: 'audio'; ts: number; data: { level: number; peak: number } }
   | { type: 'ack'; clientId?: string; ok: boolean; id?: string; error?: string }
@@ -149,13 +183,16 @@ const DEMO_MEDIA = DEMO_PARAMS.get('demo') === 'media';
 // a automatické ukončenie ambientu). Ambient sa v App.tsx spustí už po 5 s od načítania.
 // Doplnky: `&night=1` vynúti nočný jas, `&photo=1` simuluje stav po 30 min (video pauznuté).
 const DEMO_AMBIENT = DEMO_PARAMS.get('demo') === 'ambient';
+// `?demo=weather` – test riadku počasia v Station a v páse bez služby na PC.
+// Doplnky: `&stale=1` simuluje výpadok (tlmený riadok so značkou „·“), `&wxoff=1` počasie nedostupné.
+const DEMO_WEATHER = DEMO_PARAMS.get('demo') === 'weather';
 export const DEMO = {
   ambient: DEMO_AMBIENT,
   night: DEMO_PARAMS.get('night') === '1',
   photo: DEMO_PARAMS.get('photo') === '1',
 };
 const DEMO_AMBIENT_SWITCH_MS = 20000; // po tomto čase prejde agent z „pracuje“ do „čaká na teba“
-const DEMO_ANY = DEMO_AGENTS || DEMO_MEDIA || DEMO_AMBIENT;
+const DEMO_ANY = DEMO_AGENTS || DEMO_MEDIA || DEMO_AMBIENT || DEMO_WEATHER;
 const DEMO_PHASE_MS = 6000;
 const DEMO_TICK_MS = 1000;
 const AUDIO_HZ = 20; // ako často posiela úroveň zvuku služba (a teda aj demo)
@@ -186,6 +223,7 @@ export function useService() {
   const [foreground, setForeground] = useState<ForegroundState | null>(null);
   // Stav agentov necháme pri odpojení tak, ako prišiel naposledy – UI ho zošedí cez celoplošný stav výpadku.
   const [agents, setAgents] = useState<AgentsState | null>(null);
+  const [weather, setWeather] = useState<WeatherState | null>(null);
   const [lastAck, setLastAck] = useState<Ack | null>(null);
   const [offlineSince, setOfflineSince] = useState<number>(() => Date.now()); // od kedy nie je spojenie (0 = je)
   const wsRef = useRef<WebSocket | null>(null);
@@ -198,6 +236,19 @@ export function useService() {
   const lastMsgRef = useRef(0);
 
   useEffect(() => {
+    // počasie má v každom ukážkovom režime pevné dáta, nech sa dá riadok overiť všade rovnako
+    if (DEMO_ANY) setWeather(demoWeather());
+
+    if (DEMO_WEATHER) {
+      setConnection('open');
+      setOfflineSince(0);
+      setUsage(demoUsage());
+      setMedia(demoMedia());
+      setForeground({ available: true, app: 'explorer.exe', pid: 4321, title: 'Plocha', kind: 'other', ts: Date.now() });
+      setAgents(demoAmbientAgents('busy'));
+      return;
+    }
+
     if (DEMO_AGENTS) {
       setConnection('open');
       setOfflineSince(0);
@@ -338,6 +389,7 @@ export function useService() {
         else if (m.type === 'media') setMedia(m.data);
         else if (m.type === 'foreground') setForeground(m.data);
         else if (m.type === 'agents') setAgents(m.data);
+        else if (m.type === 'weather') setWeather(m.data);
         else if (m.type === 'audio') pushAudioLevel(audioRef.current, m.data?.level, m.data?.peak);
         else if (m.type === 'ack') setLastAck(m);
       };
@@ -443,7 +495,7 @@ export function useService() {
     ws.send(JSON.stringify({ type: 'media', action: 'seek', value }));
   }, []);
 
-  return { connection, offlineSince, sketchup, usage, media, foreground, agents, audio: audioRef, lastAck, sendCommand, sendMedia, sendVolume, sendSeek, hasToken: DEMO_ANY || !!tokenRef.current };
+  return { connection, offlineSince, sketchup, usage, media, foreground, agents, weather, audio: audioRef, lastAck, sendCommand, sendMedia, sendVolume, sendSeek, hasToken: DEMO_ANY || !!tokenRef.current };
 }
 
 /**
@@ -538,6 +590,49 @@ function demoCommand(m: MediaState | null, action: string, push: (s: MediaState)
     m.positionAt = now;
   } else return;
   push({ ...m });
+}
+
+/**
+ * Ukážkové počasie pre `?demo=weather` (a pre ostatné demo režimy): aktuálne 12 °C, kód 2
+ * (polooblačno), deň; 7 dní s rôznymi kódmi, nech sa dajú overiť všetky skupiny ikon.
+ */
+function demoWeather(): WeatherState {
+  const day = (i: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const codes = [2, 3, 61, 71, 95, 45, 80];
+  return {
+    available: DEMO_PARAMS.get('wxoff') !== '1',
+    stale: DEMO_PARAMS.get('stale') === '1',
+    updatedAt: Date.now() - (DEMO_PARAMS.get('stale') === '1' ? 95 * 60_000 : 4 * 60_000),
+    place: 'Liptovský Mikuláš',
+    current: { temp: 12, code: 2, isDay: true, wind: 9, humidity: 62, precipProb: 10 },
+    // hodinová krivka cez deň: v noci 7 °, na obed 22 °, večer späť k 9 °
+    hourly: Array.from({ length: 24 }, (_, i) => {
+      const d = new Date();
+      d.setMinutes(0, 0, 0);
+      d.setHours(d.getHours() + i);
+      const hour = d.getHours();
+      const warm = Math.cos(((hour - 14) / 24) * 2 * Math.PI); // maximum o 14:00
+      const p = (n: number) => String(n).padStart(2, '0');
+      return {
+        time: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(hour)}:00`,
+        temp: Math.round((7 + (warm + 1) / 2 * 15) * 10) / 10, // 7 → 22 → 9 °
+        code: hour >= 6 && hour < 18 ? 2 : 3,
+        precipProb: Math.min(90, (i % 8) * 12),
+      };
+    }),
+    daily: codes.map((code, i) => ({
+      date: day(i),
+      code,
+      tmax: 18 - i,
+      tmin: 8 - Math.floor(i / 2),
+      precipProb: i * 13,
+      precipMm: i % 3,
+    })),
+  };
 }
 
 const DEMO_TODAY: AgentsToday = { projects: 3, turns: 41, activeMs: 7_800_000, claudeOut: 128505, codexOut: 11295 };

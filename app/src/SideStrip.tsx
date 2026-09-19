@@ -8,11 +8,12 @@
 // nie ako prepisy tried `.strip`.
 import Ring from './Ring';
 import Progress from './Progress';
-import type { AgentsState, MediaState, UsageState } from './service';
+import type { AgentsState, MediaState, UsageState, WeatherState } from './service';
 import { providerActivity } from './ringActivity';
 import { formatDateDayMonth } from './time';
 import { ledTap } from './ledPulse';
 import { ProviderLogo } from './Logos';
+import WeatherIcon from './WeatherIcon';
 import { IconPrev, IconNext, IconPlay, IconPause } from './MediaIcons';
 
 interface Props {
@@ -20,21 +21,30 @@ interface Props {
   media: MediaState | null;
   /** stav agentov pre obiehajúce body na mini kruhoch (null = bez spojenia → žiadne body) */
   agents: AgentsState | null;
+  /** počasie – malá ikona s teplotou pod dátumom; nedostupné = riadok sa nezobrazí */
+  weather: WeatherState | null;
   sendMedia: (a: 'play' | 'pause' | 'toggle' | 'next' | 'prev') => void;
   now: Date;
   /** obrazovka je viditeľná – inak sa linka priebehu neprekresľuje */
   active: boolean;
 }
 
-export default function SideStrip({ usage, media, agents, sendMedia, now, active }: Props) {
+export default function SideStrip({ usage, media, agents, weather, sendMedia, now, active }: Props) {
   const stale = !usage || !usage.available || usage.stale;
   const playing = media?.status === 'Playing';
+  const wx = weather?.available && weather.current ? weather : null;
 
   return (
     <aside className="strip">
       <div className="strip-time">
         <div className="t">{String(now.getHours()).padStart(2, '0')}:{String(now.getMinutes()).padStart(2, '0')}</div>
         <div className="dd">{formatDateDayMonth(now)}</div>
+        {wx && (
+          <div className={`wx-mini ${wx.stale ? 'stale' : ''}`} title={wx.stale ? 'staré údaje' : wx.place}>
+            <WeatherIcon code={wx.current!.code} isDay={wx.current!.isDay} />
+            <span>{Math.round(wx.current!.temp)} °</span>
+          </div>
+        )}
       </div>
       <div className="player">
         <div className="np">{media?.available ? <><span>♪ </span><b>{media.title || 'Bez názvu'}</b>{media.artist ? ` · ${media.artist}` : ''}</> : <span className="muted">nič nehrá</span>}</div>

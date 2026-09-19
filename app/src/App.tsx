@@ -39,7 +39,7 @@ interface Notice {
 }
 
 export default function App() {
-  const { connection, offlineSince, sketchup, usage, media, foreground, agents, audio, lastAck, sendCommand, sendMedia, sendVolume, sendSeek, hasToken } = useService();
+  const { connection, offlineSince, sketchup, usage, media, foreground, agents, weather, audio, lastAck, sendCommand, sendMedia, sendVolume, sendSeek, hasToken } = useService();
   const [pref, setPref] = useState<Pref>(() => {
     try {
       const v = localStorage.getItem(PREF_KEY);
@@ -400,13 +400,13 @@ export default function App() {
       <main className="main">
         <div ref={stationRef} className={`layer ${shownMode.current === 'station' ? '' : 'hidden'}`}>
           {/* počas ambientu je Station schovaný pod vrstvou – equalizer ani priebeh skladby netreba kresliť */}
-          <Station usage={usage} media={media} agents={agents} audio={audio} online={online} sendMedia={sendMedia} sendVolume={sendVolume} sendSeek={sendSeek} bigPlayer={bigPlayer} active={mode === 'station' && !ambient} />
+          <Station usage={usage} media={media} agents={agents} weather={weather} audio={audio} online={online} sendMedia={sendMedia} sendVolume={sendVolume} sendSeek={sendSeek} bigPlayer={bigPlayer} active={mode === 'station' && !ambient} />
         </div>
         <div ref={skpRef} className={`layer ${shownMode.current === 'skp' ? '' : 'hidden'}`}>
-          <Skp online={online} sketchup={sketchup} sketchupActive={sketchupActive} usage={usage} media={media} agents={agents} lastAck={lastAck} sendCommand={sendCommand} sendMedia={sendMedia} active={mode === 'skp'} />
+          <Skp online={online} sketchup={sketchup} sketchupActive={sketchupActive} usage={usage} media={media} agents={agents} weather={weather} lastAck={lastAck} sendCommand={sendCommand} sendMedia={sendMedia} active={mode === 'skp'} />
         </div>
         <div ref={aiRef} className={`layer ${shownMode.current === 'ai' ? '' : 'hidden'}`}>
-          <Ai agents={agents} online={online} usage={usage} media={media} sendMedia={sendMedia} active={mode === 'ai'} />
+          <Ai agents={agents} online={online} usage={usage} media={media} weather={weather} sendMedia={sendMedia} active={mode === 'ai'} />
         </div>
 
         {/* toast o agentovi – len v Station/SKP, v režime AI je stav vidno na kartách, v ambiente stačí štítok */}
