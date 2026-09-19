@@ -39,6 +39,8 @@ const MIME: Record<string, string> = {
   '.gif': 'image/gif',
   '.ico': 'image/x-icon',
   '.woff2': 'font/woff2',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
 };
 
 function log(msg: string) {
