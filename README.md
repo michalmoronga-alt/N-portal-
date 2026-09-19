@@ -2,7 +2,7 @@
 
 Dotykový pracovný panel NOXUN: starší mobil (IIIF150 Air1) ako druhá obrazovka k PC. Ovláda SketchUp jedným dotykom, ukazuje čas, usage Claude/Codex a hudbu, reaguje na to, čo máš práve na PC otvorené.
 
-**Stav k 19. 9. 2026:** V1 je funkčná a denne používaná. Hotové a overené na mobile: E0 až E7 (SketchUp, Station, AUTO, spoľahlivosť spojenia), vizuálny rework, režim AI (agenti Claude Code a Codexu, detail karty, body aktivity na kruhoch usage), hudba 2. kolo (priebeh skladby s posunom, gestá na obale, obrázok z YouTube v plnom rozlíšení, equalizer zo skutočného zvuku), celá obrazovka dvojklikom a ambientný režim po nečinnosti. Podrobnosti a záznamy testov sú v [Postupe](docs/POSTUP.md), plán a nápady v [Pláne](docs/PLAN.md), režim AI v [AI-REZIM.md](docs/AI-REZIM.md), spôsob práce v [CLAUDE.md](CLAUDE.md).
+**Stav k 20. 9. 2026:** V1 je funkčná a denne používaná. Hotové a overené na mobile: E0 až E7 (SketchUp, Station, AUTO, spoľahlivosť spojenia), vizuálny rework, režim AI (agenti Claude Code a Codexu, detail karty, body aktivity na kruhoch usage), hudba 2. kolo (priebeh skladby s posunom, gestá na obale, obrázok z YouTube v plnom rozlíšení, equalizer zo skutočného zvuku), celá obrazovka dvojklikom, ambientný režim po nečinnosti, počasie a detaily klepnutím (počasie, usage, prehrávač v SKP/AI). Podrobnosti a záznamy testov sú v [Postupe](docs/POSTUP.md), plán a nápady v [Pláne](docs/PLAN.md), režim AI v [AI-REZIM.md](docs/AI-REZIM.md), spôsob práce v [CLAUDE.md](CLAUDE.md).
 
 ## Ako to funguje
 
@@ -20,7 +20,7 @@ Mobil nie je monitor Windows (žiadny spacedesk), preto dotyk nikdy neukradne ku
 
 | Režim | Obsah |
 |---|---|
-| **Station** | Hodiny s dňom a dátumom, dva usage kruhy (Codex týždeň; Claude týždeň + 5h prstenec) s detailom po potiahnutí (resety, odpočet do resetu 5h, stav účtu), hudba z Windows s obrázkom skladby (pri YouTube v plnom rozlíšení cez malé rozšírenie do Chrome, `chrome-ext/`), prúžok priebehu s posunom ťahom, jemný equalizer reagujúci na skutočný zvuk PC, gestá na obale (ťah = ďalšia/predošlá, klepnutie = pauza), ovládanie prehrávania, hlasitosť PC ťahom po hornom okraji karty. |
+| **Station** | Hodiny s dňom, dátumom a počasím pre Liptovský Mikuláš (klepnutie = predpoveď na 24 h a 7 dní), dva usage kruhy (Codex týždeň; Claude týždeň + 5h prstenec; klepnutie = detail s resetmi, 5h oknom a stavom účtu), hudba z Windows s obrázkom skladby (pri YouTube v plnom rozlíšení cez malé rozšírenie do Chrome, `chrome-ext/`), prúžok priebehu s posunom ťahom, jemný equalizer reagujúci na skutočný zvuk PC, gestá na obale (ťah = ďalšia/predošlá, klepnutie = pauza), ovládanie prehrávania, hlasitosť PC ťahom po hornom okraji karty. |
 | **SKP** | Zúžený Station v bočnom páse a 8 dlaždíc: Zamerať výber, Pohľad (potiahnutie hore/dole/vľavo/vpravo = zhora/spredu/zľava/sprava), ISO, X‑Ray, Predošlý pohľad, Celý model, Izolovať/Obnoviť, Skryté objekty. Výsledok povelu ako toast. |
 | **AI** | Pri aktívnom Claude alebo Codex: bočný pás ako v SKP a karta „Agenti“ so živým stavom relácií Claude Code a Codexu (pracuje / čaká na teba / hotovo / nečinný), súhrn dňa; upozornenie štítkom, toastom a LED vo všetkých režimoch. Špecifikácia: [docs/AI-REZIM.md](docs/AI-REZIM.md). |
 | **Ambient** | Po 5 min bez dotyku v Station (nastaviteľné): stmavené video pozadie (prvých 30 min, potom snímka; v noci tmavšie), veľké hodiny, malé kruhy usage s bodmi agentov, riadok skladby a equalizer cez celú šírku. Dotyk vráti Station bez akcie; ukončí ho aj agent čakajúci na vstup alebo prepnutie okna na PC. |
