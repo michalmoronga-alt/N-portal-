@@ -2,7 +2,7 @@
 
 Dotykový pracovný panel NOXUN: starší mobil (IIIF150 Air1) ako druhá obrazovka k PC. Ovláda SketchUp jedným dotykom, ukazuje čas, usage Claude/Codex a hudbu, reaguje na to, čo máš práve na PC otvorené.
 
-**Stav k 18. 9. 2026:** V1 je funkčná a denne používaná. Hotové a overené na mobile: E0 až E7, prvé kolo vizuálneho reworku (E1b) a režim AI (AI‑1). Podrobnosti a záznamy testov sú v [Postupe](docs/POSTUP.md). Ďalšie úpravy podľa postrehov z používania.
+**Stav k 19. 9. 2026:** V1 je funkčná a denne používaná. Hotové a overené na mobile: E0 až E7 (SketchUp, Station, AUTO, spoľahlivosť spojenia), vizuálny rework, režim AI (agenti Claude Code a Codexu, detail karty, body aktivity na kruhoch usage), hudba 2. kolo (priebeh skladby s posunom, gestá na obale, obrázok z YouTube v plnom rozlíšení, equalizer zo skutočného zvuku), celá obrazovka dvojklikom a ambientný režim po nečinnosti. Podrobnosti a záznamy testov sú v [Postupe](docs/POSTUP.md), plán a nápady v [Pláne](docs/PLAN.md), režim AI v [AI-REZIM.md](docs/AI-REZIM.md), spôsob práce v [CLAUDE.md](CLAUDE.md).
 
 ## Ako to funguje
 
