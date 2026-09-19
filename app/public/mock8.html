@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="sk" data-view="station">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<title>N-portal – mock: detaily klepnutím</title>
+<style>
+  :root{color-scheme:dark;--text:#e9eef7;--muted:#98a3b6;--blue:#3d7de0;--blue2:#5b95f0;--cyan:#4fc8ff;--red:#c8403f;--green:#34a865;--claude:#d97757;--codex:#9fe0cf;
+    --glass:rgba(255,255,255,.06);--edge:rgba(255,255,255,.14);--r:22px;--ease:cubic-bezier(.2,.8,.2,1);--dur:420ms}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{height:100%;background:#161a1f}
+  body{height:100%;margin:0;color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;user-select:none;overflow:hidden}
+  .bg{position:fixed;inset:0;z-index:-1;background:linear-gradient(120deg,#15181c,#22282f 35%,#2a3440 60%,#1a1f26)}
+  .bg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 30%;opacity:0;transition:opacity 1s}.bg img.ok{opacity:1}
+  .bg::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,13,18,.05),rgba(10,13,18,.3))}
+  .glass{background:var(--glass);border:1px solid var(--edge);backdrop-filter:blur(18px) saturate(1.2);-webkit-backdrop-filter:blur(18px) saturate(1.2);box-shadow:0 12px 30px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.12)}
+  .screen{position:fixed;inset:0;display:flex;flex-direction:column;gap:2vh;padding:max(8px,env(safe-area-inset-top)) 12px 8px}
+  .bar{display:flex;align-items:center;gap:2vw;height:6vh}.dot{width:1.6vh;height:1.6vh;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
+  .state{font-size:2.6vh;color:var(--muted)}.mode{margin-left:auto;font-size:2.3vh;color:var(--muted);letter-spacing:.08em}
+  .main{flex:1;position:relative;min-height:0}
+  .layer{position:absolute;inset:0}
+  html[data-view=skp] .l-station, html[data-view=station] .l-skp{visibility:hidden;pointer-events:none}
+  .card{border-radius:var(--r);position:relative;overflow:hidden}
+  svg.i{width:1em;height:1em;display:inline-block;vertical-align:-.15em}
+  /* zavieracie počítadlo 10 s: tenká linka hore na rozvinutom prvku */
+  .timer{position:absolute;top:0;left:0;height:.5vh;width:100%;background:rgba(255,255,255,.35);transform-origin:left;transform:scaleX(1);pointer-events:none;opacity:0}
+  .open .timer{opacity:1;animation:tm 10s linear forwards}
+  @keyframes tm{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+
+  /* ===== Station ===== */
+  .station{height:100%;display:grid;grid-template-columns:.78fr 1fr 1.35fr;gap:2vw;transition:grid-template-columns var(--dur) var(--ease)}
+  .station.open-clock{grid-template-columns:1.9fr .8fr 1fr}
+  .station.open-usage{grid-template-columns:.78fr 1.9fr .9fr}
+  .clock{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2vh 1vw;text-align:center;cursor:pointer}
+  .clock .time{font-size:22vh;line-height:.82;font-weight:700;letter-spacing:-.04em;transition:font-size var(--dur) var(--ease)}
+  .clock .day{margin-top:2.6vh;font-size:5vh;font-weight:600}.clock .date{margin-top:.6vh;font-size:3vh;color:var(--muted)}
+  .clock .wx{margin-top:1.2vh;font-size:3.4vh;font-weight:600;display:flex;align-items:center;gap:1vw}.clock .wx small{font-size:2.3vh;color:var(--muted);font-weight:400}
+  /* rozvinuté hodiny: čas menší hore, pod ním týždeň */
+  .station.open-clock .clock{justify-content:flex-start;padding-top:2vh}
+  .station.open-clock .clock .time{font-size:8vh}
+  .station.open-clock .clock .day,.station.open-clock .clock .date{display:none}
+  .week{display:none;width:100%;margin-top:2vh;gap:.6vh;flex-direction:column}
+  .station.open-clock .week{display:flex}
+  .week .row{display:grid;grid-template-columns:5.5vw 3.6vh 1fr auto auto 4.5vw;align-items:center;gap:1.4vw;font-size:2.4vh;padding:.35vh 1vw;border-radius:10px}
+  .week .row:first-child{background:rgba(255,255,255,.08)}
+  .week .row .d{color:var(--muted)}.week .row .lbl{color:var(--muted);font-size:2.3vh}.week .row .hi{font-weight:700}.week .row .lo{color:var(--muted)}.week .row .pp{color:var(--cyan);font-size:2.2vh;min-width:4.5vw;text-align:right}
+  .usage{display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;padding:1vh;cursor:pointer}
+  .ring{position:relative;width:34vh;height:34vh;flex:none;transition:width var(--dur) var(--ease),height var(--dur) var(--ease)}
+  .ring>svg{width:100%;height:100%;transform:rotate(-90deg)}.ring circle{fill:none;stroke-linecap:round}.ring .track{stroke:rgba(255,255,255,.08)}
+  .ring .lbl{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .ring .pct{font-size:8vh;font-weight:700;line-height:1}.ring .name{font-size:3vh;color:var(--muted);margin-top:.6vh}
+  .station.open-usage .usage{flex-direction:row;justify-content:flex-start;gap:2vw;padding:2vh 2vw}
+  .station.open-usage .ring{width:20vh;height:20vh}.station.open-usage .ring .pct{font-size:5vh}
+  .rings{display:contents}.station.open-usage .rings{display:flex;flex-direction:column;gap:2vh}
+  .utab{display:none;flex:1;font-size:2.6vh}.station.open-usage .utab{display:block}
+  .utab table{width:100%;border-collapse:collapse}.utab td{padding:.9vh .6vw;border-bottom:1px solid var(--edge)}.utab td:first-child{color:var(--muted)}.utab td:last-child{text-align:right;font-weight:600}
+  .music{display:flex;flex-direction:column;justify-content:flex-end;padding:2.5vh 3vw;gap:1vh;isolation:isolate}
+  .music .cover{position:absolute;inset:0;z-index:-2;background:url(bg.jpg) center/cover;transform:scale(1.08)}
+  .music .shade{position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(22,26,31,.1),rgba(22,26,31,.55) 45%,rgba(22,26,31,.93))}
+  .music .title{font-size:4vh;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.music .artist{font-size:2.6vh}.music .src{font-size:2.1vh;color:var(--muted)}
+  .prog{height:.8vh;border-radius:999px;background:rgba(255,255,255,.18);margin-top:1.6vh}.prog b{display:block;height:100%;width:38%;border-radius:999px;background:rgba(255,255,255,.85)}
+  .times{display:flex;justify-content:space-between;font-size:2vh;color:var(--muted)}
+  .ctrl{display:flex;justify-content:space-evenly;margin-top:1vh}.ctrl span{width:9vh;height:9vh;display:flex;align-items:center;justify-content:center;font-size:4.4vh}.ctrl span.main{width:12vh;height:12vh;font-size:7.5vh}
+
+  /* ===== SKP: pás + dlaždice, detail ako panel cez dlaždice ===== */
+  .skp{height:100%;display:grid;gap:1.5vw;grid-template-columns:20% 1fr}
+  .strip{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4.5vh;padding:1vh 0}
+  .strip .t{font-size:9.5vh;font-weight:700;line-height:1;text-shadow:0 2px 14px rgba(0,0,0,.7);letter-spacing:-.03em}
+  .strip .dd{font-size:2.5vh;color:var(--muted);margin-top:.8vh;text-align:center}
+  .strip .wx2{font-size:2.6vh;margin-top:.6vh;display:flex;align-items:center;justify-content:center;gap:.6vw}
+  .strip .np{font-size:2.6vh;color:var(--muted);text-align:center;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.strip .np b{color:var(--text)}
+  .strip .mus{display:flex;gap:1.2vw;justify-content:center}.strip .mus span{width:9vh;height:9vh;display:flex;align-items:center;justify-content:center;font-size:4.4vh}.strip .mus span.main{width:12vh;height:12vh;font-size:7.5vh}
+  .strip .rings2{display:flex;gap:1.4vw}.rw{display:flex;flex-direction:column;align-items:center;gap:.5vh}.rw .ring{width:13vh;height:13vh}.rw .ring .pct{font-size:3.2vh}.rw .name{font-size:2.4vh;color:var(--muted)}
+  .strip>*{cursor:pointer;border-radius:14px;padding:.6vh 1vw;transition:background .2s}
+  .strip>.sel{background:rgba(61,125,224,.25);box-shadow:0 0 0 1px rgba(91,149,240,.6)}
+  .skp-main{position:relative;min-height:0}
+  .grid{height:100%;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(2,1fr);gap:1.6vw}
+  .tile{border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2vh;font-size:3vh;font-weight:600}
+  .tile .ic{font-size:6vh;opacity:.8}
+  /* overlay panel cez dlaždice */
+  .ov{position:absolute;inset:0;border-radius:var(--r);opacity:0;transform:translateX(-4%) scale(.98);pointer-events:none;transition:opacity .28s var(--ease),transform .38s var(--ease);background:rgba(16,19,24,.82);border:1px solid var(--edge);backdrop-filter:blur(18px);padding:2.5vh 2.5vw;display:flex;flex-direction:column;overflow:hidden}
+  .ov.open{opacity:1;transform:none;pointer-events:auto}
+  .ov h3{margin:0 0 1.5vh;font-size:3.2vh;font-weight:600;display:flex;align-items:center;gap:1vw}.ov h3 small{color:var(--muted);font-weight:400;font-size:2.3vh;margin-left:auto}
+  .ov .week{display:flex;margin-top:0}.ov .week .row{font-size:2.9vh;padding:.8vh 1vw}
+  .ov .utab{display:block;font-size:3vh;max-width:70%}
+  .ov.player{padding:0}.ov.player .music{height:100%;background:none;border:0}
+  .dim{position:absolute;inset:0;background:rgba(0,0,0,0);pointer-events:none;transition:background .3s}.dim.on{background:rgba(0,0,0,.25);pointer-events:auto}
+  .vol{position:absolute;left:0;right:0;top:0;height:30%;background:linear-gradient(180deg,rgba(91,149,240,.18),transparent);display:flex;align-items:flex-start;justify-content:center;font-size:2.2vh;color:var(--muted);padding-top:1vh;opacity:.9}
+
+  .ctl{position:fixed;right:10px;bottom:10px;z-index:9;display:flex;gap:6px;padding:6px 8px;border-radius:14px;align-items:center;background:rgba(20,24,30,.85);border:1px solid var(--edge)}
+  .ctl button{font:inherit;font-size:1.9vh;color:var(--muted);background:transparent;border:1px solid var(--edge);border-radius:999px;padding:.5vh 1.4vw}.ctl button.on{color:#fff;background:var(--blue);border-color:var(--blue2)}
+  .ctl .lbl{font-size:1.8vh;color:var(--muted);margin:0 2px 0 8px}.ctl.hide{display:none}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="w-sun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M18.7 5.3l-1.8 1.8M7.1 16.9l-1.8 1.8"/></g></symbol>
+<symbol id="w-pc" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.2"/><path d="M8 2.5v1.8M2.5 8h1.8M4.1 4.1l1.3 1.3"/><path d="M9 19h9a3.5 3.5 0 0 0 .4-7 5 5 0 0 0-9.6 1.3A2.9 2.9 0 0 0 9 19z"/></g></symbol>
+<symbol id="w-cl" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.6 1.6A3.2 3.2 0 0 0 7 18z"/></symbol>
+<symbol id="w-rn" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 15h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.6 1.6A3.2 3.2 0 0 0 7 15z"/><path d="M8 18l-1 3M12 18l-1 3M16 18l-1 3"/></g></symbol>
+<symbol id="w-sn" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.6 1.6A3.2 3.2 0 0 0 7 14z"/><path d="M8 18v.1M12 19v.1M16 18v.1M10 21v.1M14 21v.1"/></g></symbol>
+<symbol id="w-th" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.6 1.6A3.2 3.2 0 0 0 7 14z"/><path d="M13 14l-2.5 4h3L11 22"/></g></symbol>
+</defs></svg>
+<div class="bg"><img src="bg.jpg" alt="" onload="this.classList.add('ok')" /></div>
+
+<div class="screen">
+  <header class="bar"><span class="dot"></span><span class="state" id="st">SketchUp: skrinka.skp · výber: 1</span><span class="mode" id="md">AUTO · Station</span></header>
+  <main class="main">
+    <!-- ===== Station ===== -->
+    <div class="layer l-station"><div class="station" id="station">
+      <section class="card glass clock" data-x="clock"><div class="timer"></div>
+        <div class="time">21<br>04</div><div class="day">Sobota</div><div class="date">19. september 2026</div>
+        <div class="wx"><svg class="i"><use href="#w-pc"/></svg>12 ° <small>polooblačno</small></div>
+        <div class="week" id="week1"></div>
+      </section>
+      <section class="card glass usage" data-x="usage"><div class="timer"></div>
+        <div class="rings">
+          <div class="ring"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="44" stroke-width="7"/><circle cx="50" cy="50" r="44" stroke-width="7" stroke="var(--red)" stroke-dasharray="276.5" stroke-dashoffset="0"/></svg><div class="lbl"><div class="pct">100%</div><div class="name">Codex</div></div></div>
+          <div class="ring"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="44" stroke-width="7"/><circle cx="50" cy="50" r="44" stroke-width="7" stroke="var(--blue)" stroke-dasharray="276.5" stroke-dashoffset="138"/></svg><div class="lbl"><div class="pct">50%</div><div class="name">Claude</div></div></div>
+        </div>
+        <div class="utab"><table><tr><td>Codex týždeň</td><td>100 % · reset so 10:25</td></tr><tr><td>Claude týždeň</td><td>50 % · reset ut 10:00</td></tr><tr><td>Claude 5h okno</td><td>42 % · reset o 53 min</td></tr><tr><td>Stav účtu</td><td>ok</td></tr><tr><td>Dáta</td><td>pred 2 min · LIVE</td></tr></table></div>
+      </section>
+      <section class="card glass music"><div class="cover"></div><div class="shade"></div>
+        <div class="title">STOSLIV, IRIAS – i can feel</div><div class="artist">STOSLIV</div><div class="src">Chrome · hrá</div>
+        <div class="prog"><b></b></div><div class="times"><span>1:07</span><span>2:51</span></div>
+        <div class="ctrl"><span>⏮</span><span class="main">⏸</span><span>⏭</span></div>
+      </section>
+    </div></div>
+
+    <!-- ===== SKP (rovnako aj AI) ===== -->
+    <div class="layer l-skp"><div class="skp">
+      <aside class="strip" id="strip">
+        <div data-o="clock"><div class="t">21:04</div><div class="dd">Sobota 19. september</div><div class="wx2"><svg class="i"><use href="#w-pc"/></svg>12 °</div></div>
+        <div data-o="player"><div class="np">♪ <b>STOSLIV, IRIAS – i can feel</b></div><div class="mus"><span>⏮</span><span class="main">⏸</span><span>⏭</span></div></div>
+        <div data-o="usage" class="rings2">
+          <div class="rw"><div class="ring"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="44" stroke-width="9"/><circle cx="50" cy="50" r="44" stroke-width="9" stroke="var(--red)" stroke-dasharray="276.5" stroke-dashoffset="0"/></svg><div class="lbl"><div class="pct">100%</div></div></div><div class="name">Codex</div></div>
+          <div class="rw"><div class="ring"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="44" stroke-width="9"/><circle cx="50" cy="50" r="44" stroke-width="9" stroke="var(--blue)" stroke-dasharray="276.5" stroke-dashoffset="138"/></svg><div class="lbl"><div class="pct">50%</div></div></div><div class="name">Claude</div></div>
+        </div>
+      </aside>
+      <div class="skp-main" id="skpmain">
+        <div class="grid">
+          <div class="tile glass"><div class="ic">◎</div>Zamerať výber</div><div class="tile glass"><div class="ic">✥</div>Pohľad</div><div class="tile glass"><div class="ic">◈</div>ISO</div><div class="tile glass"><div class="ic">✚</div>X‑Ray</div>
+          <div class="tile glass"><div class="ic">↶</div>Predošlý pohľad</div><div class="tile glass"><div class="ic">▣</div>Celý model</div><div class="tile glass"><div class="ic">◫</div>Izolovať</div><div class="tile glass"><div class="ic">◌</div>Skryté objekty</div>
+        </div>
+        <div class="dim" id="dim"></div>
+        <div class="ov" id="ov-clock"><div class="timer"></div><h3><svg class="i"><use href="#w-pc"/></svg>Liptovský Mikuláš · 12 ° polooblačno <small>Open‑Meteo · pred 4 min</small></h3><div class="week" id="week2"></div></div>
+        <div class="ov" id="ov-usage"><div class="timer"></div><h3>Usage <small>NOXUN AI Usage · pred 2 min · LIVE</small></h3><div class="utab"><table><tr><td>Codex týždeň</td><td>100 % · reset so 10:25</td></tr><tr><td>Claude týždeň</td><td>50 % · reset ut 10:00</td></tr><tr><td>Claude 5h okno</td><td>42 % · reset o 53 min</td></tr><tr><td>Stav účtu</td><td>ok</td></tr></table></div></div>
+        <div class="ov player" id="ov-player"><div class="timer"></div><section class="card music" style="height:100%"><div class="cover"></div><div class="shade"></div><div class="vol">▲ hlasitosť PC ťahom po hornom okraji</div>
+          <div class="title">STOSLIV, IRIAS – i can feel</div><div class="artist">STOSLIV</div><div class="src">Chrome · hrá</div>
+          <div class="prog"><b></b></div><div class="times"><span>1:07</span><span>2:51</span></div>
+          <div class="ctrl"><span>⏮</span><span class="main">⏸</span><span>⏭</span></div></section></div>
+      </div>
+    </div></div>
+  </main>
+</div>
+
+<div class="ctl" id="ctl"><span class="lbl">Pohľad:</span><button data-v="station" class="on">Station</button><button data-v="skp">SKP / AI</button><button id="hide">skryť</button></div>
+
+<script>
+// týždeň (pevné dáta)
+const days=[['dnes','pc',14,6,20],['ne','sun',17,5,0],['po','rn',13,8,80],['ut','rn',11,7,90],['st','cl',12,6,30],['št','pc',15,5,10],['pi','sun',18,7,0]];
+const lab={sun:'jasno',pc:'polooblačno',cl:'zamračené',rn:'dážď',sn:'sneh',th:'búrka'};
+const week=days.map(([d,c,hi,lo,pp])=>`<div class="row"><span class="d">${d}</span><svg class="i"><use href="#w-${c}"/></svg><span class="lbl">${lab[c]}</span><span class="hi">${hi} °</span><span class="lo">${lo} °</span><span class="pp">${pp?pp+' %':''}</span></div>`).join('');
+document.getElementById('week1').innerHTML=week;document.getElementById('week2').innerHTML=week;
+
+// ---------- Station: klepnutie roztiahne kartu, 10 s alebo klepnutie mimo zavrie ----------
+const station=document.getElementById('station');let openX=null,tmr=null;
+function closeX(){station.classList.remove('open-clock','open-usage');station.querySelectorAll('.open').forEach(e=>e.classList.remove('open'));openX=null;clearTimeout(tmr);}
+function armTimer(fn){clearTimeout(tmr);tmr=setTimeout(fn,10000);}
+station.querySelectorAll('[data-x]').forEach(el=>el.addEventListener('pointerdown',e=>{e.stopPropagation();const x=el.dataset.x;if(openX===x){closeX();return;}closeX();openX=x;station.classList.add('open-'+x);el.classList.add('open');armTimer(closeX);}));
+document.querySelector('.l-station').addEventListener('pointerdown',()=>{if(openX)closeX();});
+
+// ---------- SKP: klepnutie na prvok pásu vysunie panel cez dlaždice ----------
+const strip=document.getElementById('strip'),dim=document.getElementById('dim');let openO=null,tmr2=null;
+function closeO(){document.querySelectorAll('.ov').forEach(o=>o.classList.remove('open'));strip.querySelectorAll('.sel').forEach(s=>s.classList.remove('sel'));dim.classList.remove('on');openO=null;clearTimeout(tmr2);}
+function arm2(){clearTimeout(tmr2);tmr2=setTimeout(closeO,10000);}
+strip.querySelectorAll('[data-o]').forEach(el=>el.addEventListener('pointerdown',e=>{e.stopPropagation();const o=el.dataset.o;if(openO===o){closeO();return;}closeO();openO=o;el.classList.add('sel');dim.classList.add('on');const ov=document.getElementById('ov-'+o);ov.classList.add('open');arm2();}));
+// dotyk v otvorenom paneli (napr. prehrávač) predĺži čas; klepnutie mimo (stmavené dlaždice) len zavrie
+document.querySelectorAll('.ov').forEach(ov=>ov.addEventListener('pointerdown',e=>{e.stopPropagation();if(openO)arm2();}));
+dim.addEventListener('pointerdown',e=>{e.stopPropagation();closeO();});
+
+// ---------- ovládanie mocku ----------
+const ctl=document.getElementById('ctl');
+ctl.querySelectorAll('button[data-v]').forEach(b=>b.onclick=()=>{document.documentElement.dataset.view=b.dataset.v;ctl.querySelectorAll('button[data-v]').forEach(x=>x.classList.toggle('on',x===b));document.getElementById('md').textContent=b.dataset.v==='skp'?'AUTO · SKP':'AUTO · Station';closeX();closeO();});
+document.getElementById('hide').onclick=()=>ctl.classList.add('hide');let lt=0;document.addEventListener('pointerdown',()=>{const n=Date.now();if(n-lt<350)ctl.classList.remove('hide');lt=n;},true);
+</script>
+</body>
+</html>
