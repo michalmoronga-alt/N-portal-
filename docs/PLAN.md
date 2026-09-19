@@ -50,6 +50,13 @@ Stav dnes: hudobný modul (C# `media-worker`) hlási názov, interpreta, zdroj, 
 
 Poradie: H2‑1 → H2‑2 → H2‑3 (H2‑4 len ak ostane chuť). Jeden worktree `feat/music-2`, blok A (worker + služba) a blok B (PWA) paralelne ako pri AI‑1, kontrakt `MediaState` dohodnutý vopred. Test na PC s YouTube v Chrome (hlási pozíciu) a s webom bez pozície (prúžok skrytý). Zamietnuté ostáva: obrázok skladby ako pozadie celého Station (nízke rozlíšenie obrázkov).
 
+## Etapa W — počasie a detaily klepnutím (schválené 19. 9. 2026)
+
+| Blok | Čo sa zmení z pohľadu používateľa | Technicky | Náročnosť |
+|---|---|---|---|
+| **W‑1 Počasie** | V Station pod dátumom ikona počasia a teplota pre Liptovský Mikuláš; v páse SKP/AI malá ikona s teplotou vedľa dátumu. Pri výpadku posledné známe dáta so značkou „staré“. | Služba: Open‑Meteo (bez kľúča) každých 15 min, téma `weather` (aktuálne + 7 dní), súradnice v config.json s predvolenou hodnotou. PWA: vlastné jednofarebné ikony podľa WMO kódu a deň/noc. | malá–stredná |
+| **W‑2 Detaily klepnutím** (mock `mock8.html`) | Klepnutie na hodiny → plynulo predpoveď na 7 dní; klepnutie na usage → dnešná tabuľka (**len klepnutím, ťah hore a nápoveda „potiahni hore“ odstránené**); v páse SKP/AI klepnutie na hodiny/usage/prehrávač vysunie panel cez dlaždice alebo agentov (prehrávač = plná karta ako v Station: obal, prúžok s posunom, hlasitosť na hornom okraji, tlačidlá). Zatvorenie po 10 s bez dotyku (pri prehrávači od posledného dotyku) alebo klepnutím mimo; prvé klepnutie mimo len zavrie, nespustí dlaždicu. Prehrávač v Station sa nemení. | PWA: spoločný `Expand` mechanizmus (Station: roztiahnutie karty; pás: overlay), počítadlo 10 s, zachytenie prvého klepnutia. | stredná |
+
 ## Backlog — až po základnom teste
 
 ### Automatické režimy — implementované v E4 (15. 9. 2026)
