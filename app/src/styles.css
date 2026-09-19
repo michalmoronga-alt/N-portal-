@@ -378,7 +378,7 @@ html.reduce .badge, html.reduce .chip.busy i { animation: none !important; }
    Vrstva cez celý `.main` (teda pod horným pásom). Vpravo stály pás „› zavrieť“ (18 % šírky),
    hore tenká linka odpočítavajúca 10 s. Počas prelínania von (trieda `closing`) vrstva stále chytá
    dotyk, aby zatváracie klepnutie neprešlo na dlaždicu alebo kartu pod ňou. */
-.ov { position: absolute; inset: 0; z-index: 5; border-radius: var(--r); opacity: 0; transform: translateY(3%) scale(.985); pointer-events: none; transition: opacity .3s var(--ease), transform .45s var(--ease); background: rgba(14, 17, 22, .86); border: 1px solid var(--edge); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: grid; grid-template-columns: 1fr 18%; overflow: hidden; }
+.ov { position: absolute; inset: 0; z-index: 5; border-radius: var(--r); opacity: 0; transform: translateY(3%) scale(.985); pointer-events: none; transition: opacity .3s var(--ease), transform .45s var(--ease); background: rgba(12, 15, 20, .94); border: 1px solid var(--edge); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: grid; grid-template-columns: 1fr 18%; overflow: hidden; }
 .ov.open { opacity: 1; transform: none; pointer-events: auto; }
 .ov.closing { pointer-events: auto; }
 .ov-body { padding: 2.4vh 2.6vw; min-width: 0; display: flex; flex-direction: column; gap: 1.6vh; overflow: hidden; }
@@ -392,7 +392,7 @@ html.reduce .ov .timer { animation: none !important; }
 .ov-empty { margin: auto; color: var(--muted); font-size: 3vh; }
 
 /* detail počasia: aktuálne │ krivka │ dni */
-.wnow { display: flex; align-items: center; gap: 2.4vw; flex: none; }
+.wnow { display: flex; align-items: center; gap: 2.4vw; flex: none; margin-bottom: auto; } /* krivka a dni sa tlačia k spodnej hrane */
 .wnow .big { display: flex; align-items: center; gap: 1.4vw; }
 .wnow .big .wx-ico { font-size: 11vh; color: #dfe7f3; }
 .wnow .big .tmp { font-size: 9vh; font-weight: 700; line-height: 1; white-space: nowrap; }
