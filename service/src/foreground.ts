@@ -21,7 +21,8 @@ const WORKER_EXE = path.resolve(here, '..', 'bin', 'fg-worker.exe');
 export function kindOf(app: string | null): ForegroundKind {
   const a = (app ?? '').toLowerCase();
   if (a === 'sketchup') return 'sketchup';
-  if (a === 'claude' || a === 'codex') return 'ai';
+  // aplikácia Codex z Microsoft Store (balík OpenAI.Codex) beží ako proces ChatGPT.exe
+  if (a === 'claude' || a === 'codex' || a === 'chatgpt') return 'ai';
   if (a === 'chrome' || a === 'msedge' || a === 'firefox' || a === 'brave') return 'chrome';
   return 'other';
 }
