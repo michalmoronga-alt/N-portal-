@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import SideStrip from './SideStrip';
 import AgentCard from './AgentCard';
 import { ProviderLogo } from './Logos';
-import type { AgentInfo, AgentStatus, AgentsState, MediaState, UsageState } from './service';
+import type { AgentInfo, AgentStatus, AgentsState, MediaState, UsageState, WeatherState } from './service';
 import { useClock, formatDuration as dur, formatAgo as ago } from './time';
 
 interface Props {
@@ -15,6 +15,8 @@ interface Props {
   online: boolean;
   usage: UsageState | null;
   media: MediaState | null;
+  /** počasie pre riadok v páse */
+  weather: WeatherState | null;
   sendMedia: (a: 'play' | 'pause' | 'toggle' | 'next' | 'prev') => void;
   /** obrazovka je viditeľná (pri odchode do iného režimu sa otvorený detail zavrie) */
   active: boolean;
@@ -22,7 +24,7 @@ interface Props {
 
 const RANK: Record<string, number> = { waiting: 0, busy: 1, done: 2, idle: 3 };
 
-export default function Ai({ agents, online, usage, media, sendMedia, active }: Props) {
+export default function Ai({ agents, online, usage, media, weather, sendMedia, active }: Props) {
   const now = useClock();
   const t = now.getTime();
 
@@ -47,7 +49,7 @@ export default function Ai({ agents, online, usage, media, sendMedia, active }: 
 
   return (
     <div className="ai">
-      <SideStrip usage={usage} media={media} agents={online ? agents : null} sendMedia={sendMedia} now={now} active={active} />
+      <SideStrip usage={usage} media={media} agents={online ? agents : null} weather={weather} sendMedia={sendMedia} now={now} active={active} />
 
       <section className={`card glass panel ${available ? '' : 'unavail'}`}>
         <div className="hd">

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
 import Ring from './Ring';
 import Equalizer from './Equalizer';
 import type { AudioLevel } from './audioLevel';
-import type { AgentsState, MediaState, UsageState } from './service';
+import type { AgentsState, MediaState, UsageState, WeatherState } from './service';
 import { providerActivity } from './ringActivity';
 import { useClock, formatDateLong, formatCountdown } from './time';
 import { ledTap } from './ledPulse';
@@ -10,6 +10,7 @@ import VolumeStrip from './VolumeStrip';
 import Progress from './Progress';
 import { swipeDirOf } from './swipe';
 import { ProviderLogo } from './Logos';
+import WeatherIcon, { weatherLabel } from './WeatherIcon';
 import { IconPrev, IconNext, IconPlay, IconPause } from './MediaIcons';
 
 interface Props {
@@ -17,6 +18,8 @@ interface Props {
   media: MediaState | null;
   /** stav agentov pre obiehajúce body na kruhoch (null = bez spojenia → žiadne body) */
   agents: AgentsState | null;
+  /** počasie pod dátumom; nedostupné = riadok je prázdny, ale výška ostáva (hodiny neposkočia) */
+  weather: WeatherState | null;
   /** živá úroveň zvuku z PC pre equalizer (zámerne mimo React stavu, chodí 20× za s) */
   audio: RefObject<AudioLevel>;
   online: boolean; // bez spojenia sú tlačidlá zablokované, obsah ostáva
@@ -33,7 +36,7 @@ const NUDGE_MS = 260; // ohlas ťahu na obale
 const TAP_MS = 180; // ohlas klepnutia na obale
 const COVER_FADE_MS = 450; // prelínanie obalu (musí sedieť s animáciou `cover-in` v styles.css)
 
-export default function Station({ usage, media, agents, audio, online, sendMedia, sendVolume, sendSeek, bigPlayer, active }: Props) {
+export default function Station({ usage, media, agents, weather, audio, online, sendMedia, sendVolume, sendSeek, bigPlayer, active }: Props) {
   const canPlay = online && !!media?.available;
   const now = useClock();
   const [detail, setDetail] = useState(false);
@@ -91,6 +94,7 @@ export default function Station({ usage, media, agents, audio, online, sendMedia
   const stale = !usage || !usage.available || usage.stale;
   const playing = media?.status === 'Playing';
   const ringAgents = online ? agents : null; // bez spojenia sú dáta agentov neplatné → body zmiznú
+  const wx = weather?.available && weather.current ? weather : null;
   const dayName = formatDateLong(now).split(',')[0];
   const dateRest = formatDateLong(now).split(', ')[1] ?? '';
 
@@ -112,6 +116,16 @@ export default function Station({ usage, media, agents, audio, online, sendMedia
         </div>
         <div className="day">{dayName}</div>
         <div className="date">{dateRest}</div>
+        {/* riadok počasia: pri nedostupnosti ostáva prázdny (rezervovaná výška), aby hodiny neposkočili */}
+        <div className={`wx ${wx?.stale ? 'stale' : ''}`} title={wx ? (wx.stale ? `${wx.place} · staré údaje` : wx.place) : undefined}>
+          {wx && (
+            <>
+              <WeatherIcon code={wx.current!.code} isDay={wx.current!.isDay} />
+              <b>{wx.stale ? '· ' : ''}{Math.round(wx.current!.temp)} °</b>
+              <span>{weatherLabel(wx.current!.code)}</span>
+            </>
+          )}
+        </div>
       </section>
 
       <section
