@@ -4,6 +4,7 @@ import type { Ack, AgentsState, MediaState, SketchUpState, UsageState, WeatherSt
 import { useClock } from './time';
 import { ledTap, ledError } from './ledPulse';
 import SwipeTile, { type SwipeDir } from './SwipeTile';
+import type { DetailKind } from './Overlay';
 
 type Flash = { kind: 'ok' | 'error' | 'warn'; text: string; until: number } | null;
 const REPLY_TIMEOUT_MS = 3000;
@@ -24,6 +25,8 @@ interface Props {
   sendMedia: (a: 'play' | 'pause' | 'toggle' | 'next' | 'prev') => void;
   /** obrazovka je viditeľná (len pre plynulý priebeh skladby v páse) */
   active: boolean;
+  /** klepnutie na hodiny / prehrávač / kruhy v páse otvorí detail cez celú obrazovku (W‑2) */
+  onDetail: (kind: DetailKind) => void;
 }
 
 interface Tile { action: string; name: string; sub: string; icon: React.ReactNode; enabled: boolean; swipe?: boolean; primary?: boolean }
@@ -46,7 +49,7 @@ function buildTiles(s: SketchUpState | null): Tile[] {
   ];
 }
 
-export default function Skp({ online, sketchup, sketchupActive, usage, media, agents, weather, lastAck, sendCommand, sendMedia, active }: Props) {
+export default function Skp({ online, sketchup, sketchupActive, usage, media, agents, weather, lastAck, sendCommand, sendMedia, active, onDetail }: Props) {
   const now = useClock();
   const [flash, setFlash] = useState<Flash>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -125,7 +128,7 @@ export default function Skp({ online, sketchup, sketchupActive, usage, media, ag
   return (
     <div className="skp">
       {/* zúžený Station: bez rámčeka, priamo na pozadí – zdieľaný s režimom AI */}
-      <SideStrip usage={usage} media={media} agents={online ? agents : null} weather={weather} sendMedia={sendMedia} now={now} active={active} />
+      <SideStrip usage={usage} media={media} agents={online ? agents : null} weather={weather} sendMedia={sendMedia} now={now} active={active} onDetail={onDetail} />
 
       <div className="skp-main">
         <div className="grid">

@@ -186,13 +186,21 @@ const DEMO_AMBIENT = DEMO_PARAMS.get('demo') === 'ambient';
 // `?demo=weather` – test riadku počasia v Station a v páse bez služby na PC.
 // Doplnky: `&stale=1` simuluje výpadok (tlmený riadok so značkou „·“), `&wxoff=1` počasie nedostupné.
 const DEMO_WEATHER = DEMO_PARAMS.get('demo') === 'weather';
+// `?demo=details` – test detailov cez celú obrazovku (W‑2) bez služby na PC: hudba, počasie aj usage
+// naraz s pevnými hodnotami, takže sa dajú otvoriť všetky tri detaily. `&mode=skp` (alebo `station`,
+// `ai`) spustí panel rovno v danom režime.
+const DEMO_DETAILS = DEMO_PARAMS.get('demo') === 'details';
+const MODE_PARAM = DEMO_PARAMS.get('mode');
+const DEMO_MODE = MODE_PARAM === 'station' || MODE_PARAM === 'skp' || MODE_PARAM === 'ai' ? MODE_PARAM : null;
 export const DEMO = {
   ambient: DEMO_AMBIENT,
   night: DEMO_PARAMS.get('night') === '1',
   photo: DEMO_PARAMS.get('photo') === '1',
+  /** ukážkový štartovací režim (`&mode=…`); `?demo=details` štartuje v Station, ak sa neurčí inak */
+  mode: (DEMO_MODE ?? (DEMO_DETAILS ? 'station' : null)) as 'station' | 'skp' | 'ai' | null,
 };
 const DEMO_AMBIENT_SWITCH_MS = 20000; // po tomto čase prejde agent z „pracuje“ do „čaká na teba“
-const DEMO_ANY = DEMO_AGENTS || DEMO_MEDIA || DEMO_AMBIENT || DEMO_WEATHER;
+const DEMO_ANY = DEMO_AGENTS || DEMO_MEDIA || DEMO_AMBIENT || DEMO_WEATHER || DEMO_DETAILS;
 const DEMO_PHASE_MS = 6000;
 const DEMO_TICK_MS = 1000;
 const AUDIO_HZ = 20; // ako často posiela úroveň zvuku služba (a teda aj demo)
@@ -265,7 +273,7 @@ export function useService() {
       return () => window.clearInterval(t);
     }
 
-    if (DEMO_MEDIA || DEMO_AMBIENT) {
+    if (DEMO_MEDIA || DEMO_AMBIENT || DEMO_DETAILS) {
       setConnection('open');
       setOfflineSince(0);
       const big = DEMO_PARAMS.get('big') !== null;
@@ -464,7 +472,7 @@ export function useService() {
   }, []);
 
   const sendMedia = useCallback((action: 'play' | 'pause' | 'toggle' | 'next' | 'prev' | 'mute' | 'unmute') => {
-    if (DEMO_MEDIA) {
+    if (DEMO_MEDIA || DEMO_DETAILS) {
       demoCommand(demoRef.current, action, setMedia);
       return;
     }
@@ -482,7 +490,7 @@ export function useService() {
   /** Posun v skladbe (ms od začiatku) – odosiela sa až po pustení prsta, jeden povel. */
   const sendSeek = useCallback((ms: number) => {
     const value = Math.max(0, Math.round(ms));
-    if (DEMO_MEDIA) {
+    if (DEMO_MEDIA || DEMO_DETAILS) {
       const m = demoRef.current;
       if (!m) return;
       m.position = m.duration === null ? value : Math.min(value, m.duration);

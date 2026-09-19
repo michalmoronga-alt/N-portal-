@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { useService, DEMO } from './service';
 import type { AgentStatus } from './service';
-import Station, { appName } from './Station';
+import Station from './Station';
+import { appName } from './MusicCard';
 import Skp from './Skp';
 import Ai from './Ai';
 import Settings from './Settings';
 import Ambient from './Ambient';
+import Overlay, { type DetailKind } from './Overlay';
+import WeatherDetail from './WeatherDetail';
+import UsageDetail from './UsageDetail';
+import MusicCard from './MusicCard';
 import { ProviderLogo } from './Logos';
 import { formatDuration } from './time';
 import { ledEnabled, setLedEnabled, ledTap, ledLong } from './ledPulse';
@@ -41,6 +46,7 @@ interface Notice {
 export default function App() {
   const { connection, offlineSince, sketchup, usage, media, foreground, agents, weather, audio, lastAck, sendCommand, sendMedia, sendVolume, sendSeek, hasToken } = useService();
   const [pref, setPref] = useState<Pref>(() => {
+    if (DEMO.mode) return DEMO.mode; // `?demo=…&mode=skp` – ukážkový štart v danom režime
     try {
       const v = localStorage.getItem(PREF_KEY);
       return v === 'auto' || v === 'station' || v === 'skp' || v === 'ai' ? v : 'auto';
@@ -92,6 +98,7 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (DEMO.mode) return; // ukážkový režim nech neprepíše nastavenie na telefóne
     try {
       localStorage.setItem(PREF_KEY, pref);
     } catch {
@@ -260,6 +267,27 @@ export default function App() {
     return () => window.clearTimeout(t);
   }, [ambient, ambientMounted]);
 
+  // ---------- detail cez celú obrazovku (W‑2) ----------
+  // Naraz je otvorený najviac jeden detail a vrstva je spoločná pre všetky režimy (Overlay.tsx).
+  // Zatvára ho: pás „zavrieť“, 10 s bez dotyku (to rieši Overlay), prepnutie režimu, spustenie
+  // ambientu, výpadok spojenia a otvorenie nastavení.
+  const [detail, setDetail] = useState<DetailKind | null>(null);
+  const closeDetail = useCallback(() => setDetail(null), []);
+  const openDetail = useCallback(
+    (k: DetailKind) => {
+      // hodiny bez dát počasia detail nemajú – klepnutie vtedy nič nemení
+      if (k === 'weather' && !(weather?.available && weather.current)) return;
+      setDetail(k);
+    },
+    [weather],
+  );
+  useEffect(() => {
+    setDetail(null); // prepnutie režimu (aj automatické) detail zavrie
+  }, [mode]);
+  useEffect(() => {
+    if (ambient || !online || settingsOpen) setDetail(null);
+  }, [ambient, online, settingsOpen]);
+
   // ---------- slide prechod (Station – SKP – AI; do vyššieho indexu vrstva odchádza doľava) ----------
   const stationRef = useRef<HTMLDivElement>(null);
   const skpRef = useRef<HTMLDivElement>(null);
@@ -400,14 +428,38 @@ export default function App() {
       <main className="main">
         <div ref={stationRef} className={`layer ${shownMode.current === 'station' ? '' : 'hidden'}`}>
           {/* počas ambientu je Station schovaný pod vrstvou – equalizer ani priebeh skladby netreba kresliť */}
-          <Station usage={usage} media={media} agents={agents} weather={weather} audio={audio} online={online} sendMedia={sendMedia} sendVolume={sendVolume} sendSeek={sendSeek} bigPlayer={bigPlayer} active={mode === 'station' && !ambient} />
+          <Station usage={usage} media={media} agents={agents} weather={weather} audio={audio} online={online} sendMedia={sendMedia} sendVolume={sendVolume} sendSeek={sendSeek} bigPlayer={bigPlayer} active={mode === 'station' && !ambient} onDetail={openDetail} />
         </div>
         <div ref={skpRef} className={`layer ${shownMode.current === 'skp' ? '' : 'hidden'}`}>
-          <Skp online={online} sketchup={sketchup} sketchupActive={sketchupActive} usage={usage} media={media} agents={agents} weather={weather} lastAck={lastAck} sendCommand={sendCommand} sendMedia={sendMedia} active={mode === 'skp'} />
+          <Skp online={online} sketchup={sketchup} sketchupActive={sketchupActive} usage={usage} media={media} agents={agents} weather={weather} lastAck={lastAck} sendCommand={sendCommand} sendMedia={sendMedia} active={mode === 'skp'} onDetail={openDetail} />
         </div>
         <div ref={aiRef} className={`layer ${shownMode.current === 'ai' ? '' : 'hidden'}`}>
-          <Ai agents={agents} online={online} usage={usage} media={media} weather={weather} sendMedia={sendMedia} active={mode === 'ai'} />
+          <Ai agents={agents} online={online} usage={usage} media={media} weather={weather} sendMedia={sendMedia} active={mode === 'ai'} onDetail={openDetail} />
         </div>
+
+        {/* detail cez celú obrazovku: počasie, usage, prehrávač (len z pásu SKP/AI) */}
+        <Overlay
+          kind={detail}
+          onClose={closeDetail}
+          render={(k) =>
+            k === 'weather' ? (
+              <WeatherDetail weather={weather} />
+            ) : k === 'usage' ? (
+              <UsageDetail usage={usage} />
+            ) : (
+              <MusicCard
+                media={media}
+                audio={audio}
+                online={online}
+                sendMedia={sendMedia}
+                sendVolume={sendVolume}
+                sendSeek={sendSeek}
+                active
+                className="card music"
+              />
+            )
+          }
+        />
 
         {/* toast o agentovi – len v Station/SKP, v režime AI je stav vidno na kartách, v ambiente stačí štítok */}
         <div className={`toast glass agent-toast ${toast ? toast.kind : ''} ${toast && mode !== 'ai' && !ambient ? 'show' : ''}`} aria-live="polite">
@@ -437,6 +489,7 @@ export default function App() {
           agents={online ? agents : null}
           media={media}
           audio={audio}
+          weather={weather}
           notice={notice}
           onExit={() => {
             setAmbient(false);

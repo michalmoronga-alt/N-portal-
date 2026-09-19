@@ -13,7 +13,8 @@ import { ProviderLogo } from './Logos';
 import { providerActivity } from './ringActivity';
 import { formatDateAmbient } from './time';
 import type { AudioLevel } from './audioLevel';
-import type { AgentsState, MediaState, UsageState } from './service';
+import type { AgentsState, MediaState, UsageState, WeatherState } from './service';
+import WeatherIcon from './WeatherIcon';
 
 /** Štítok o agentovi – rovnaký obsah aj farby ako v hornom páse (logika je v App.tsx). */
 interface AmbNotice {
@@ -31,6 +32,8 @@ interface Props {
   media: MediaState | null;
   /** živá úroveň zvuku z PC pre equalizer (mimo React stavu) */
   audio: RefObject<AudioLevel>;
+  /** počasie pod dátumom (ikona + teplota, bez popisu); nedostupné = riadok je prázdny */
+  weather: WeatherState | null;
   notice: AmbNotice | null;
   /** dotyk na vrstvu: ambient končí a dotyk sa ďalej nešíri (Station pod ním nedostane klik) */
   onExit: () => void;
@@ -47,7 +50,7 @@ const JITTER_X = 12; // posun hodín každú minútu (ochrana displeja)
 const JITTER_Y = 8;
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
 
-export default function Ambient({ visible, usage, agents, media, audio, notice, onExit, demoNight, demoPhoto }: Props) {
+export default function Ambient({ visible, usage, agents, media, audio, weather, notice, onExit, demoNight, demoPhoto }: Props) {
   // „obmedziť pohyb“ sa mení len v nastaveniach a tie ambient ukončia – stačí prečítať pri vzniku
   const [reduce] = useState(() => document.documentElement.classList.contains('reduce'));
   const [videoFail, setVideoFail] = useState(false);
@@ -141,6 +144,7 @@ export default function Ambient({ visible, usage, agents, media, audio, notice, 
 
   const stale = !usage || !usage.available || usage.stale;
   const playing = media?.status === 'Playing';
+  const wx = weather?.available && weather.current ? weather : null;
   const artist = media?.artist?.trim() || '';
   const title = media?.title?.trim() || '';
 
@@ -172,6 +176,15 @@ export default function Ambient({ visible, usage, agents, media, audio, notice, 
         <div className="amb-clock" style={{ ['--dx' as string]: `${clock.dx}px`, ['--dy' as string]: `${clock.dy}px` }}>
           <div className="t">{String(hours).padStart(2, '0')}:{String(clock.now.getMinutes()).padStart(2, '0')}</div>
           <div className="d">{formatDateAmbient(clock.now)}</div>
+          {/* počasie: ikona a teplota bez popisu; pri nedostupnosti ostáva riadok prázdny (bez skoku) */}
+          <div className={`amb-wx ${wx?.stale ? 'stale' : ''}`}>
+            {wx && (
+              <>
+                <WeatherIcon code={wx.current!.code} isDay={wx.current!.isDay} />
+                <b>{Math.round(wx.current!.temp)} °</b>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="amb-rings">

@@ -107,37 +107,24 @@ html.offline .bg img { filter: grayscale(.85) brightness(.8); }
 
 /* ---------- Station ---------- */
 .station { height: 100%; display: grid; grid-template-columns: .78fr 1fr 1.35fr; gap: 2vw; transition: grid-template-columns var(--dur) var(--ease); }
-.station.detail-open { grid-template-columns: .78fr 1.9fr .9fr; }
-.station.big-player:not(.detail-open) { grid-template-columns: .7fr .8fr 1.8fr; }
-.clock { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2vh 1vw; text-align: center; }
+.station.big-player { grid-template-columns: .7fr .8fr 1.8fr; }
+/* hodiny v2 (mock8 v2): deň a dátum hore, čas v strede, dole veľká ikona počasia s teplotou bez popisu.
+   Blok je vycentrovaný a prvky sú pri sebe – medzera dátum→čas aj čas→počasie je 2 vh. */
+.clock { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2vh; padding: 2vh 1vw; text-align: center; }
+.clock .day { font-size: 4.2vh; font-weight: 600; letter-spacing: .02em; }
+.clock .date { margin-top: .3vh; font-size: 2.5vh; color: var(--muted); }
 .time { font-size: 22vh; line-height: .82; font-weight: 700; letter-spacing: -.04em; }
 .time .d { display: block; }
-.day { margin-top: 2.6vh; font-size: 5vh; font-weight: 600; }
-.date { margin-top: .6vh; font-size: 3vh; color: var(--muted); }
-/* počasie pod dátumom; výška je pevná, aby sa pri strate dát hodiny nepohli */
-.wx { margin-top: 1.2vh; height: 4.4vh; display: flex; align-items: center; justify-content: center; gap: 1vw; }
-.wx .wx-ico { font-size: 3.6vh; }
-.wx b { font-size: 3.4vh; font-weight: 700; }
-.wx span { font-size: 2.4vh; color: var(--muted); }
-.wx.stale { opacity: .6; }
+/* výška riadku počasia ostáva aj bez dát, aby hodiny pri strate počasia neposkočili */
+.clock .wx { height: 8.5vh; display: flex; align-items: center; justify-content: center; gap: 1.2vw; }
+.clock .wx .wx-ico { font-size: 8.5vh; color: #dfe7f3; }
+.clock .wx b { font-size: 5.2vh; font-weight: 700; }
+.clock .wx.stale { opacity: .6; }
 
-.usage { display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; padding: 1vh; touch-action: pan-x; }
+/* kruhy usage: klepnutie otvára detail cez celú obrazovku (Overlay.tsx), karta sa už nerozťahuje */
+.usage { display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; padding: 1vh; }
 .usage .rings { display: contents; }
-.usage.open { flex-direction: row; justify-content: flex-start; gap: 2vw; padding: 2vh 2vw; }
-.usage.open .rings { display: flex; flex-direction: column; gap: 2vh; justify-content: center; }
-.usage.open .ring { width: 20vh; height: 20vh; }
-.usage.open .ring .pct { font-size: 4.6vh; }
 .hint { position: absolute; bottom: .8vh; left: 0; right: 0; text-align: center; font-size: 2vh; color: var(--muted); opacity: .7; }
-.dtl { flex: 1; display: flex; flex-direction: column; gap: 1.2vh; min-width: 0; animation: fadein .4s var(--ease); }
-@keyframes fadein { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: none; } }
-.dtl h3 { margin: 0; font-size: 2.6vh; color: var(--muted); font-weight: 600; display: flex; justify-content: space-between; }
-.dtl table { border-collapse: collapse; width: 100%; font-size: 2.6vh; }
-.dtl th { text-align: left; color: var(--muted); font-weight: 500; padding: .8vh 0; border-bottom: 1px solid var(--edge); }
-.dtl td { padding: .9vh 0; border-bottom: 1px solid rgba(255, 255, 255, .06); font-weight: 600; white-space: nowrap; }
-.dtl td.k { color: var(--muted); font-weight: 500; width: 30%; }
-.dtl .warn { color: var(--amber); }
-.dtl .cd { color: var(--cyan); }
-.dtl .foot { font-size: 2.1vh; color: var(--muted); }
 
 /* kruhy */
 .ring { position: relative; width: 34vh; height: 34vh; flex: none; transition: width var(--dur) var(--ease), height var(--dur) var(--ease); }
@@ -387,6 +374,68 @@ html.reduce .badge, html.reduce .chip.busy i { animation: none !important; }
 .agent-toast.done { color: var(--done-txt); border-color: rgba(111, 214, 154, .8); background: linear-gradient(135deg, var(--done1), var(--done2)) !important; }
 .agent-toast.waiting { color: var(--wait-txt); border-color: rgba(154, 120, 255, .8); background: linear-gradient(135deg, var(--wait1), var(--wait2)) !important; }
 
+/* ---------- detail cez celú obrazovku (W‑2, mock app/public/mock8.html v2) ----------
+   Vrstva cez celý `.main` (teda pod horným pásom). Vpravo stály pás „› zavrieť“ (18 % šírky),
+   hore tenká linka odpočítavajúca 10 s. Počas prelínania von (trieda `closing`) vrstva stále chytá
+   dotyk, aby zatváracie klepnutie neprešlo na dlaždicu alebo kartu pod ňou. */
+.ov { position: absolute; inset: 0; z-index: 5; border-radius: var(--r); opacity: 0; transform: translateY(3%) scale(.985); pointer-events: none; transition: opacity .3s var(--ease), transform .45s var(--ease); background: rgba(14, 17, 22, .86); border: 1px solid var(--edge); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: grid; grid-template-columns: 1fr 18%; overflow: hidden; }
+.ov.open { opacity: 1; transform: none; pointer-events: auto; }
+.ov.closing { pointer-events: auto; }
+.ov-body { padding: 2.4vh 2.6vw; min-width: 0; display: flex; flex-direction: column; gap: 1.6vh; overflow: hidden; }
+.ov-close { border-left: 1px solid var(--edge); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.5vh; color: var(--muted); font-size: 2.4vh; background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, .04)); }
+.ov-close b { font-size: 9vh; font-weight: 300; line-height: 1; opacity: .7; }
+.ov-close:active { background: rgba(255, 255, 255, .08); }
+.ov .timer { position: absolute; top: 0; left: 0; height: .5vh; width: 100%; background: rgba(255, 255, 255, .35); transform-origin: left; pointer-events: none; z-index: 2; }
+.ov.open .timer { animation: ovtimer 10s linear forwards; }
+@keyframes ovtimer { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+html.reduce .ov .timer { animation: none !important; }
+.ov-empty { margin: auto; color: var(--muted); font-size: 3vh; }
+
+/* detail počasia: aktuálne │ krivka │ dni */
+.wnow { display: flex; align-items: center; gap: 2.4vw; flex: none; }
+.wnow .big { display: flex; align-items: center; gap: 1.4vw; }
+.wnow .big .wx-ico { font-size: 11vh; color: #dfe7f3; }
+.wnow .big .tmp { font-size: 9vh; font-weight: 700; line-height: 1; white-space: nowrap; }
+.wnow .big .tmp small { font-size: 3.2vh; color: var(--muted); font-weight: 400; margin-left: .4vw; }
+.wnow .desc { font-size: 3vh; font-weight: 600; }
+.wnow .wmeta { font-size: 2.4vh; color: var(--muted); line-height: 1.5; }
+.wnow .place { margin-left: auto; text-align: right; min-width: 0; }
+.wnow .place .p { font-size: 3.2vh; font-weight: 600; white-space: nowrap; }
+.wnow .place .s { font-size: 2.3vh; color: var(--muted); }
+.curve { position: relative; height: 17vh; margin: 0 1vw; flex: none; }
+.curve svg { width: 100%; height: 100%; overflow: visible; }
+.curve .lab { position: absolute; inset: 0; pointer-events: none; }
+.curve .lab span { position: absolute; transform: translate(-50%, 0); font-size: 2.2vh; color: var(--text); }
+.curve .hrs { position: absolute; left: 0; right: 0; bottom: -3.2vh; display: flex; justify-content: space-between; font-size: 2.1vh; color: var(--muted); padding: 0 1%; }
+.days { display: grid; grid-template-columns: repeat(7, 1fr); gap: .8vw; margin-top: 3.6vh; flex: none; }
+.days .d { display: flex; flex-direction: column; align-items: center; gap: .6vh; padding: 1vh .4vw; border-radius: 14px; font-size: 2.4vh; }
+.days .d.now { background: rgba(255, 255, 255, .08); }
+.days .d .n { font-weight: 600; }
+.days .d .wx-ico { font-size: 5.6vh; color: #dfe7f3; }
+.days .d .t { font-size: 2.6vh; white-space: nowrap; }
+.days .d .t b { font-weight: 700; }
+.days .d .t span { color: var(--muted); }
+.days .d .pp { font-size: 2vh; color: var(--cyan); min-height: 2vh; }
+
+/* detail usage: dva vodorovné pásy oddelené linkou; pri otvorení sa vysunú (druhý s onesk. 0,08 s) */
+.ubands { display: flex; flex-direction: column; justify-content: center; gap: 0; flex: 1; min-height: 0; }
+.uband { display: flex; align-items: center; gap: 3vw; padding: 1.8vh 1vw; transform: translateX(-4%) scale(.9); opacity: 0; transition: transform .5s var(--ease), opacity .4s; }
+.ov.open .uband { transform: none; opacity: 1; }
+.ov.open .uband:nth-child(3) { transition-delay: .08s; }
+.uband .ring { width: 22vh; height: 22vh; }
+.uband .ring .pct { font-size: 5.2vh; }
+.uband .ring .name { font-size: 2.4vh; }
+.udiv { height: 1px; background: var(--edge); margin: 0 2vw; flex: none; }
+.ud { display: grid; grid-template-columns: auto auto; gap: .6vh 3vw; font-size: 2.7vh; align-items: baseline; min-width: 0; }
+.ud .k { color: var(--muted); }
+.ud .v { font-weight: 600; }
+.ud .v.warn { color: #ff9d9c; }
+.ud .h { grid-column: 1 / 3; font-size: 3.2vh; font-weight: 600; display: flex; align-items: center; gap: 1vw; margin-bottom: .4vh; }
+
+/* detail prehrávača: plná hudobná karta ako v Station (MusicCard.tsx) */
+.ov.player .ov-body { padding: 0; }
+.ov.player .music { flex: 1; min-height: 0; border-radius: var(--r) 0 0 var(--r); }
+
 /* ---------- nastavenia ---------- */
 .scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, .35); opacity: 0; pointer-events: none; transition: opacity .3s; z-index: 19; }
 .scrim.show { opacity: 1; pointer-events: auto; }
@@ -419,6 +468,12 @@ html.reduce .badge, html.reduce .chip.busy i { animation: none !important; }
 .amb-clock { text-align: center; transform: translate(var(--dx, 0), var(--dy, 0)); transition: transform 2s var(--ease); }
 .amb-clock .t { font-size: 34vh; line-height: .9; font-weight: 700; letter-spacing: -.04em; text-shadow: 0 4px 30px rgba(0, 0, 0, .7); }
 .amb-clock .d { margin-top: 1.5vh; font-size: 4vh; color: var(--muted); }
+/* počasie pod dátumom: ikona a teplota bez popisu; výška ostáva aj bez dát (hodiny neposkočia) */
+.amb-clock .amb-wx { margin-top: 2vh; height: 6vh; display: flex; align-items: center; justify-content: center; gap: 1.2vw; }
+.amb-clock .amb-wx .wx-ico { font-size: 6vh; }
+.amb-clock .amb-wx b { font-size: 4.5vh; font-weight: 700; }
+.amb-clock .amb-wx.stale { opacity: .6; }
+.ambient.night .amb-clock .amb-wx { color: #cfd6e2; }
 .ambient.night .amb-clock .t { color: #cfd6e2; }
 
 /* kruhy usage vľavo dole: len percento a názov pod kruhom, body aktivity ako inde */

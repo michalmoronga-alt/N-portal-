@@ -80,6 +80,22 @@ export function formatReset(epochSec: number): string {
   return `${DAYS_SHORT[d.getDay()]} ${hm}`;
 }
 
+/** Skratka dňa v týždni („ne“, „po“ …) – dni v detaile počasia. */
+export function formatDayShort(d: Date): string {
+  return DAYS_SHORT[d.getDay()];
+}
+
+/** Celý názov dňa malým písmenom („sobota“) – hlavička detailu počasia. */
+export function formatDayLong(d: Date): string {
+  return DAYS[d.getDay()].toLowerCase();
+}
+
+/** Čas resetu celým názvom dňa: „sobota 10:25“ (detail usage). */
+export function formatResetLong(epochSec: number): string {
+  const d = new Date(epochSec * 1000);
+  return `${DAYS[d.getDay()].toLowerCase()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 function startOfDay(d: Date): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 }

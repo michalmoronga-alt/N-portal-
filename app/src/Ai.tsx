@@ -8,6 +8,7 @@ import AgentCard from './AgentCard';
 import { ProviderLogo } from './Logos';
 import type { AgentInfo, AgentStatus, AgentsState, MediaState, UsageState, WeatherState } from './service';
 import { useClock, formatDuration as dur, formatAgo as ago } from './time';
+import type { DetailKind } from './Overlay';
 
 interface Props {
   agents: AgentsState | null;
@@ -20,11 +21,13 @@ interface Props {
   sendMedia: (a: 'play' | 'pause' | 'toggle' | 'next' | 'prev') => void;
   /** obrazovka je viditeľná (pri odchode do iného režimu sa otvorený detail zavrie) */
   active: boolean;
+  /** klepnutie na hodiny / prehrávač / kruhy v páse otvorí detail cez celú obrazovku (W‑2) */
+  onDetail: (kind: DetailKind) => void;
 }
 
 const RANK: Record<string, number> = { waiting: 0, busy: 1, done: 2, idle: 3 };
 
-export default function Ai({ agents, online, usage, media, weather, sendMedia, active }: Props) {
+export default function Ai({ agents, online, usage, media, weather, sendMedia, active, onDetail }: Props) {
   const now = useClock();
   const t = now.getTime();
 
@@ -49,7 +52,7 @@ export default function Ai({ agents, online, usage, media, weather, sendMedia, a
 
   return (
     <div className="ai">
-      <SideStrip usage={usage} media={media} agents={online ? agents : null} weather={weather} sendMedia={sendMedia} now={now} active={active} />
+      <SideStrip usage={usage} media={media} agents={online ? agents : null} weather={weather} sendMedia={sendMedia} now={now} active={active} onDetail={onDetail} />
 
       <section className={`card glass panel ${available ? '' : 'unavail'}`}>
         <div className="hd">
