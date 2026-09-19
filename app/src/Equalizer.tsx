@@ -1,7 +1,9 @@
-// Equalizer v hudobnej karte (Station) – tvar A „polárna žiara“.
-// Kreslenie je 1 : 1 port schváleného mocku `app/public/mock6.html` (funkcia `drawA`): 34 mäkkých
-// stĺpcov s náhodným semenom a rýchlosťou, v strede vyššie, biele jadro a antracitový tieň vedľa.
-// Sila a rozmazanie sú v styles.css (`.music .eq`, opacity .55 / blur 7 px – schválené Michalom).
+// Equalizer – tvar A „polárna žiara“. Dva varianty:
+//   `card` = hudobná karta v Station (34 stĺpcov, mock `app/public/mock6.html`),
+//   `wide` = ambientný režim cez celú šírku (56 stĺpcov, širší profil – mock `app/public/mock7.html`).
+// Kreslenie je 1 : 1 port mockov (funkcia `drawA`): mäkké stĺpce s náhodným semenom a rýchlosťou,
+// v strede vyššie, biele jadro a antracitový tieň vedľa.
+// Sila a rozmazanie sú v styles.css (`.music .eq` a `.amb-music .eq` – schválené Michalom).
 //
 // Batéria starého telefónu: úroveň zvuku chodí zo služby ~20× za sekundu do jedného objektu
 // v `useRef` (žiadny React stav), loop beží len keď je Station viditeľný, stránka na obrazovke
@@ -10,14 +12,20 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { setAudioWake, type AudioLevel } from './audioLevel';
 
+export type EqVariant = 'card' | 'wide';
+
 interface Props {
   /** živá úroveň zvuku z PC (mimo React stavu) */
   audio: RefObject<AudioLevel>;
-  /** obrazovka Station je viditeľná */
+  /** obrazovka s equalizerom je viditeľná */
   active: boolean;
+  /** 'card' = hudobná karta v Station (predvolené), 'wide' = ambient cez celú šírku */
+  variant?: EqVariant;
 }
 
-const N = 34; // počet stĺpcov (ako v mocku)
+const BARS: Record<EqVariant, number> = { card: 34, wide: 56 }; // počet stĺpcov (ako v mockoch)
+// koľko výšky má krajný stĺpec; zvyšok dopĺňa stred (card 0,35 + 0,65 × stred, wide 0,25 + 0,75 × stred)
+const EDGE: Record<EqVariant, number> = { card: 0.35, wide: 0.25 };
 const QUIET_MS = 1000; // ticho dlhšie než sekunda = pauza → dokresliť a zastaviť
 const STALE_MS = 1500; // bez novej správy toľko času berieme ako ticho (služba pri pauze mlčí)
 const EPS = 0.004; // pod touto úrovňou už nie je čo kresliť
@@ -28,10 +36,11 @@ interface Bar {
   spd: number;
 }
 
-const newBars = (): Bar[] => Array.from({ length: N }, () => ({ v: 0, seed: Math.random() * 6.28, spd: 0.7 + Math.random() * 1.1 }));
+const newBars = (n: number): Bar[] => Array.from({ length: n }, () => ({ v: 0, seed: Math.random() * 6.28, spd: 0.7 + Math.random() * 1.1 }));
 
 /** Jedna snímka „polárnej žiary“; vracia najvyšší stĺpec, aby loop vedel, kedy je už dokreslené. */
-function drawA(ctx: CanvasRenderingContext2D, bars: Bar[], t: number, lv: number, W: number, H: number): number {
+function drawA(ctx: CanvasRenderingContext2D, bars: Bar[], t: number, lv: number, W: number, H: number, edge: number): number {
+  const N = bars.length;
   const gap = W / N;
   const bw = gap * 0.62;
   let max = 0;
@@ -39,7 +48,7 @@ function drawA(ctx: CanvasRenderingContext2D, bars: Bar[], t: number, lv: number
     const b = bars[i];
     const center = 1 - Math.abs(i - (N - 1) / 2) / ((N - 1) / 2); // v strede vyššie
     const noise = 0.55 + 0.45 * Math.sin(t * b.spd + b.seed) * Math.sin(t * 0.37 + b.seed * 2);
-    const target = lv * (0.35 + 0.65 * center) * noise;
+    const target = lv * (edge + (1 - edge) * center) * noise;
     b.v += (target - b.v) * 0.18; // vyhladenie medzi správami zo služby
     if (b.v > max) max = b.v;
     const h = Math.max(2, b.v * H * 0.95);
@@ -72,7 +81,7 @@ export function eqStats() {
   return { running: loopRunning, frames: framesDrawn };
 }
 
-export default function Equalizer({ audio, active }: Props) {
+export default function Equalizer({ audio, active, variant = 'card' }: Props) {
   const cvRef = useRef<HTMLCanvasElement>(null);
   const barsRef = useRef<Bar[] | null>(null);
   // „obmedziť pohyb“ sa prepína v nastaveniach za behu (trieda na <html>) – equalizer vtedy zmizne
@@ -88,8 +97,9 @@ export default function Equalizer({ audio, active }: Props) {
     const cv = cvRef.current;
     const ctx = cv?.getContext('2d');
     if (!cv || !ctx) return;
-    if (!barsRef.current) barsRef.current = newBars();
+    if (!barsRef.current || barsRef.current.length !== BARS[variant]) barsRef.current = newBars(BARS[variant]);
     const bars = barsRef.current;
+    const edge = EDGE[variant];
     const a = audio.current;
     let raf = 0;
     let quietSince = 0;
@@ -124,7 +134,7 @@ export default function Equalizer({ audio, active }: Props) {
       const W = cv.width;
       const H = cv.height;
       ctx.clearRect(0, 0, W, H);
-      const max = drawA(ctx, bars, now / 1000, lv, W, H);
+      const max = drawA(ctx, bars, now / 1000, lv, W, H, edge);
       if (lv > EPS) quietSince = 0;
       else if (!quietSince) quietSince = now;
       // pauza alebo ticho: nechaj stĺpce dopadnúť na nulu a potom loop zastav
@@ -170,7 +180,7 @@ export default function Equalizer({ audio, active }: Props) {
       document.removeEventListener('visibilitychange', onVisible);
       if (a.wake === wake) setAudioWake(a, null);
     };
-  }, [audio, active, reduce]);
+  }, [audio, active, reduce, variant]);
 
   if (reduce) return null; // „obmedziť pohyb“: equalizer sa nekreslí vôbec
   return <canvas className="eq" ref={cvRef} aria-hidden="true" />;

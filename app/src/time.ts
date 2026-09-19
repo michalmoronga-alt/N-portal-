@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 const DAYS = ['Nedeľa', 'Pondelok', 'Utorok', 'Streda', 'Štvrtok', 'Piatok', 'Sobota'];
 const DAYS_SHORT = ['ne', 'po', 'ut', 'st', 'št', 'pi', 'so'];
 const MONTHS = ['január', 'február', 'marec', 'apríl', 'máj', 'jún', 'júl', 'august', 'september', 'október', 'november', 'december'];
+// druhý pád (ambientný režim: „sobota 19. septembra“)
+const MONTHS_GEN = ['januára', 'februára', 'marca', 'apríla', 'mája', 'júna', 'júla', 'augusta', 'septembra', 'októbra', 'novembra', 'decembra'];
 
 /** Aktuálny čas, obnovovaný raz za sekundu (na hranici minúty sa zmení zobrazenie). */
 export function useClock(): Date {
@@ -21,6 +23,11 @@ export function formatDateLong(d: Date): string {
 /** „Utorok 15. september“ – bez roka, do úzkeho pásu. */
 export function formatDateDayMonth(d: Date): string {
   return `${DAYS[d.getDay()]} ${d.getDate()}. ${MONTHS[d.getMonth()]}`;
+}
+
+/** „sobota 19. septembra“ – ambientný režim (deň malým písmenom, mesiac v druhom páde). */
+export function formatDateAmbient(d: Date): string {
+  return `${DAYS[d.getDay()].toLowerCase()} ${d.getDate()}. ${MONTHS_GEN[d.getMonth()]}`;
 }
 
 /** Zvyšok do času resetu: „o 1 h 12 min“, „o 8 min“, „teraz“. */

@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import { useService } from './service';
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useService, DEMO } from './service';
 import type { AgentStatus } from './service';
 import Station, { appName } from './Station';
 import Skp from './Skp';
 import Ai from './Ai';
 import Settings from './Settings';
+import Ambient from './Ambient';
 import { ProviderLogo } from './Logos';
 import { formatDuration } from './time';
 import { ledEnabled, setLedEnabled, ledTap, ledLong } from './ledPulse';
@@ -15,6 +16,10 @@ export type Pref = 'auto' | Mode;
 const ORDER: Mode[] = ['station', 'skp', 'ai']; // poradie vrstiev pre slide prechod a ťah po lište
 const PREF_KEY = 'nportal.pref';
 const MOTION_KEY = 'nportal.motion';
+const AMBIENT_KEY = 'nportal.ambient';
+const AMBIENT_DEFAULT_MIN = 5; // ambient po nečinnosti v Station (0 = vypnuté)
+const AMBIENT_DEMO_MS = 5000; // `?demo=ambient`: nečakáme minúty, ambient sa zapne po 5 s
+const AMBIENT_OUT_MS = 200; // ukončenie: vrstva sa odpojí až po krátkom prelínaní von
 const AUTO_DELAY_MS = 400; // ochrana proti preblikávaniu pri rýchlom Alt+Tab
 const SLIDE_MS = 480;
 const OFFLINE_GRACE_MS = 1500; // krátke výpadky (rýchle znovupripojenie) nezosivia panel
@@ -52,9 +57,39 @@ export default function App() {
       return false;
     }
   });
+  const [ambientMin, setAmbientMinState] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem(AMBIENT_KEY);
+      const v = raw === null ? AMBIENT_DEFAULT_MIN : Number(raw);
+      return v === 0 || v === 2 || v === 5 || v === 10 ? v : AMBIENT_DEFAULT_MIN;
+    } catch {
+      return AMBIENT_DEFAULT_MIN;
+    }
+  });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // ambientný režim: `ambient` = beží, `ambientMounted` drží vrstvu ešte chvíľu kvôli prelínaniu von
+  const [ambient, setAmbient] = useState(false);
+  const [ambientMounted, setAmbientMounted] = useState(false);
+  const idleMs = useRef(0); // 0 = počítadlo nečinnosti nebeží (iný režim, výpadok, nastavenia…)
+  const idleTimer = useRef(0);
   const touching = useRef(false);
   const pendingAuto = useRef<Mode | null>(null);
+
+  /** Znovu rozbehne počítadlo nečinnosti (dotyk, koniec ambientu, zmena podmienok). */
+  const restartIdle = useCallback(() => {
+    if (idleTimer.current) window.clearTimeout(idleTimer.current);
+    idleTimer.current = 0;
+    if (idleMs.current > 0) idleTimer.current = window.setTimeout(() => setAmbient(true), idleMs.current);
+  }, []);
+
+  const setAmbientMin = (v: number) => {
+    setAmbientMinState(v);
+    try {
+      localStorage.setItem(AMBIENT_KEY, String(v));
+    } catch {
+      /* ignore */
+    }
+  };
 
   useEffect(() => {
     try {
@@ -139,6 +174,7 @@ export default function App() {
   const onPointerDown = () => {
     touching.current = true;
     requestWakeLock();
+    restartIdle(); // každý dotyk odkladá ambient
   };
   const onPointerUp = () => {
     touching.current = false;
@@ -183,6 +219,7 @@ export default function App() {
     });
     if (!fresh.length) return;
     ledLong();
+    setAmbient(false); // agent niečo chce – ambient končí, nech je vidieť celý panel
     if (modeRef.current !== 'ai') {
       const n = fresh[fresh.length - 1];
       setToast({
@@ -201,6 +238,27 @@ export default function App() {
 
   const notice = notices.length ? notices[notices.length - 1] : null;
   const noticeExtra = notices.length - 1;
+
+  // ---------- ambientný režim (veľké hodiny cez celú obrazovku po nečinnosti) ----------
+  // Beží len v Station (AUTO aj ručne), so spojením a so zavretými nastaveniami. Keď ktorákoľvek
+  // z podmienok padne, ambient hneď končí a počítadlo nečinnosti sa spustí odznova.
+  const ambientOk = ambientMin > 0 && mode === 'station' && online && !settingsOpen;
+  useEffect(() => {
+    if (!ambientOk && ambient) setAmbient(false);
+  }, [ambientOk, ambient]);
+  useEffect(() => {
+    idleMs.current = ambientOk && !ambient ? (DEMO.ambient ? AMBIENT_DEMO_MS : ambientMin * 60000) : 0;
+    restartIdle();
+  }, [ambientOk, ambient, ambientMin, restartIdle]);
+  useEffect(() => {
+    if (ambient) {
+      setAmbientMounted(true);
+      return;
+    }
+    if (!ambientMounted) return;
+    const t = window.setTimeout(() => setAmbientMounted(false), AMBIENT_OUT_MS);
+    return () => window.clearTimeout(t);
+  }, [ambient, ambientMounted]);
 
   // ---------- slide prechod (Station – SKP – AI; do vyššieho indexu vrstva odchádza doľava) ----------
   const stationRef = useRef<HTMLDivElement>(null);
@@ -341,7 +399,8 @@ export default function App() {
 
       <main className="main">
         <div ref={stationRef} className={`layer ${shownMode.current === 'station' ? '' : 'hidden'}`}>
-          <Station usage={usage} media={media} agents={agents} audio={audio} online={online} sendMedia={sendMedia} sendVolume={sendVolume} sendSeek={sendSeek} bigPlayer={bigPlayer} active={mode === 'station'} />
+          {/* počas ambientu je Station schovaný pod vrstvou – equalizer ani priebeh skladby netreba kresliť */}
+          <Station usage={usage} media={media} agents={agents} audio={audio} online={online} sendMedia={sendMedia} sendVolume={sendVolume} sendSeek={sendSeek} bigPlayer={bigPlayer} active={mode === 'station' && !ambient} />
         </div>
         <div ref={skpRef} className={`layer ${shownMode.current === 'skp' ? '' : 'hidden'}`}>
           <Skp online={online} sketchup={sketchup} sketchupActive={sketchupActive} usage={usage} media={media} agents={agents} lastAck={lastAck} sendCommand={sendCommand} sendMedia={sendMedia} active={mode === 'skp'} />
@@ -350,8 +409,8 @@ export default function App() {
           <Ai agents={agents} online={online} usage={usage} media={media} sendMedia={sendMedia} active={mode === 'ai'} />
         </div>
 
-        {/* toast o agentovi – len v Station/SKP, v režime AI je stav vidno na kartách */}
-        <div className={`toast glass agent-toast ${toast ? toast.kind : ''} ${toast && mode !== 'ai' ? 'show' : ''}`} aria-live="polite">
+        {/* toast o agentovi – len v Station/SKP, v režime AI je stav vidno na kartách, v ambiente stačí štítok */}
+        <div className={`toast glass agent-toast ${toast ? toast.kind : ''} ${toast && mode !== 'ai' && !ambient ? 'show' : ''}`} aria-live="polite">
           {toast && <ProviderLogo provider={toast.provider} colored />}
           <span>{toast?.text ?? ''}</span>
         </div>
@@ -366,8 +425,27 @@ export default function App() {
         toggleLed={toggleLed}
         reduceMotion={reduceMotion}
         setReduceMotion={setReduceMotion}
+        ambientMin={ambientMin}
+        setAmbientMin={setAmbientMin}
         info={`${headline}${foreground?.available ? ` · aktívne okno: ${foreground.app ?? '?'}` : ''}`}
       />
+
+      {ambientMounted && (
+        <Ambient
+          visible={ambient}
+          usage={usage}
+          agents={online ? agents : null}
+          media={media}
+          audio={audio}
+          notice={notice}
+          onExit={() => {
+            setAmbient(false);
+            requestWakeLock();
+          }}
+          demoNight={DEMO.night}
+          demoPhoto={DEMO.photo}
+        />
+      )}
     </div>
   );
 }

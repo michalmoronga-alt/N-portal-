@@ -144,7 +144,18 @@ const DEMO_AGENTS = DEMO_PARAMS.get('demo') === 'agents';
 // `?demo=media` – test priebehu skladby a posunu bez služby na PC. Doplnky (len pre demo):
 // `&big=1` hlási aktívny Chrome (väčší prehrávač), `&nodur=1` skladbu bez známej dĺžky (prúžok skrytý).
 const DEMO_MEDIA = DEMO_PARAMS.get('demo') === 'media';
-const DEMO_ANY = DEMO_AGENTS || DEMO_MEDIA;
+// `?demo=ambient` – test ambientného režimu bez služby na PC: dáta ako pri `demo=media` (hudba hrá,
+// simulovaná úroveň) plus jeden pracujúci agent, ktorý po 20 s prejde do „čaká na teba“ (štítok
+// a automatické ukončenie ambientu). Ambient sa v App.tsx spustí už po 5 s od načítania.
+// Doplnky: `&night=1` vynúti nočný jas, `&photo=1` simuluje stav po 30 min (video pauznuté).
+const DEMO_AMBIENT = DEMO_PARAMS.get('demo') === 'ambient';
+export const DEMO = {
+  ambient: DEMO_AMBIENT,
+  night: DEMO_PARAMS.get('night') === '1',
+  photo: DEMO_PARAMS.get('photo') === '1',
+};
+const DEMO_AMBIENT_SWITCH_MS = 20000; // po tomto čase prejde agent z „pracuje“ do „čaká na teba“
+const DEMO_ANY = DEMO_AGENTS || DEMO_MEDIA || DEMO_AMBIENT;
 const DEMO_PHASE_MS = 6000;
 const DEMO_TICK_MS = 1000;
 const AUDIO_HZ = 20; // ako často posiela úroveň zvuku služba (a teda aj demo)
@@ -203,7 +214,7 @@ export function useService() {
       return () => window.clearInterval(t);
     }
 
-    if (DEMO_MEDIA) {
+    if (DEMO_MEDIA || DEMO_AMBIENT) {
       setConnection('open');
       setOfflineSince(0);
       const big = DEMO_PARAMS.get('big') !== null;
@@ -216,6 +227,12 @@ export function useService() {
         ts: Date.now(),
       });
       setUsage(demoUsage());
+      // ambient: agent najprv pracuje (body na kruhu), po 20 s „čaká na teba“ (štítok + koniec ambientu)
+      let tAgent = 0;
+      if (DEMO_AMBIENT) {
+        setAgents(demoAmbientAgents('busy'));
+        tAgent = window.setTimeout(() => setAgents(demoAmbientAgents('waiting')), DEMO_AMBIENT_SWITCH_MS);
+      }
       const st = demoMedia(DEMO_PARAMS.get('nodur') === null);
       demoRef.current = st;
       setMedia({ ...st });
@@ -247,6 +264,7 @@ export function useService() {
       return () => {
         window.clearInterval(t);
         window.clearInterval(ta);
+        window.clearTimeout(tAgent);
       };
     }
 
@@ -547,6 +565,19 @@ function demoAgent(
     startedAt: t - startedAgoMs,
     pid: 100000 + id.length,
     detail: null,
+  };
+}
+
+/** `?demo=ambient`: jedna relácia Claude – najprv „pracuje“, po 20 s „čaká na teba“. */
+function demoAmbientAgents(status: AgentStatus): AgentsState {
+  const min = 60_000;
+  const since = status === 'busy' ? 3 * min : 2000;
+  return {
+    available: true,
+    reason: null,
+    updatedAt: Date.now(),
+    agents: [demoAgent('claude:ambient', 'claude', 'N‑portal', 'ambientný režim', status, since, 2000, 18 * min)],
+    today: DEMO_TODAY,
   };
 }
 

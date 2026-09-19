@@ -390,3 +390,41 @@ html.reduce .badge, html.reduce .chip.busy i { animation: none !important; }
 .seg button, .drawer .demo { border: 1px solid var(--edge); background: var(--glass); color: var(--text); border-radius: 10px; padding: 1.3vh .8vw; font: inherit; font-size: 2.4vh; text-align: left; }
 .seg button { flex: 1; text-align: center; }
 .seg button.on { background: var(--blue); border-color: var(--blue2); }
+
+/* ---------- ambientný režim (mock app/public/mock7.html) ----------
+   Vrstva cez celú obrazovku nad všetkým vrátane horného pásu. Dnu sa prelína 1,5 s, von do 200 ms
+   (trieda `off` – kratší prechod berie jas tam, kde práve je, takže dotyk počas nábehu neblikne). */
+.ambient { position: fixed; inset: 0; z-index: 15; opacity: 0; transition: opacity 1.5s var(--ease); }
+.ambient.on { opacity: 1; }
+.ambient.off { opacity: 0; pointer-events: none; transition: opacity .18s linear; }
+.ambient { --dim: .42; } /* jas pozadia cez deň */
+.ambient.night { --dim: .22; } /* noc 22:00–7:00 */
+
+.amb-bg { position: absolute; inset: 0; overflow: hidden; background: #000; }
+.amb-bg video, .amb-bg img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: var(--dim); transition: opacity 1.5s var(--ease); }
+.amb-bg::after { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 40%, rgba(0, 0, 0, .55) 100%); }
+
+.amb-in { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+
+/* hodiny: veľké v strede, každú minútu drobný posun (ochrana displeja) */
+.amb-clock { text-align: center; transform: translate(var(--dx, 0), var(--dy, 0)); transition: transform 2s var(--ease); }
+.amb-clock .t { font-size: 34vh; line-height: .9; font-weight: 700; letter-spacing: -.04em; text-shadow: 0 4px 30px rgba(0, 0, 0, .7); }
+.amb-clock .d { margin-top: 1.5vh; font-size: 4vh; color: var(--muted); }
+.ambient.night .amb-clock .t { color: #cfd6e2; }
+
+/* kruhy usage vľavo dole: len percento a názov pod kruhom, body aktivity ako inde */
+.amb-rings { position: absolute; left: 3vw; bottom: 3vh; display: flex; gap: 1.6vw; }
+.amb-rings .rw { display: flex; flex-direction: column; align-items: center; gap: .4vh; }
+.amb-rings .ring.mini { width: 12vh; height: 12vh; }
+.amb-rings .ring.mini .pct { font-size: 3vh; }
+.amb-rings .name { font-size: 2vh; color: var(--muted); }
+
+/* hudba dole: equalizer cez celú šírku a pod ním riadok „Interpret – názov“ */
+.amb-music { position: absolute; left: 0; right: 0; bottom: 0; height: 34vh; pointer-events: none; opacity: 0; transition: opacity 1s; }
+.amb-music.on { opacity: 1; }
+.amb-music .eq { position: absolute; left: 0; bottom: 0; width: 100%; height: 100%; opacity: .5; filter: blur(7px); }
+.amb-music .np { position: absolute; left: 0; right: 0; bottom: 2.4vh; text-align: center; font-size: 2.6vh; color: var(--muted); text-shadow: 0 1px 8px rgba(0, 0, 0, .8); padding: 0 3vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.amb-music .np b { color: var(--text); font-weight: 600; }
+
+/* štítok „čaká na teba / hotovo“ – rovnaký ako v hornom páse, len hore v strede */
+.amb-badge { position: absolute; top: 2.5vh; left: 50%; transform: translateX(-50%); max-width: 70%; font-size: 2.6vh; padding: .6vh 2.2vw; }

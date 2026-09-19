@@ -1,4 +1,5 @@
-// Nastavenia (ozubené koliesko vpravo hore): režim, LED spätná väzba, celá obrazovka, obmedzený pohyb.
+// Nastavenia (ozubené koliesko vpravo hore): režim, ambient po nečinnosti, LED spätná väzba,
+// celá obrazovka, obmedzený pohyb.
 import type { Pref } from './App';
 import { toggleFullscreen } from './fullscreen';
 
@@ -11,10 +12,15 @@ interface Props {
   toggleLed: () => void;
   reduceMotion: boolean;
   setReduceMotion: (v: boolean) => void;
+  /** ambient po nečinnosti v Station: 0 = vypnuté, inak minúty */
+  ambientMin: number;
+  setAmbientMin: (v: number) => void;
   info: string; // stav spojenia / cieľová relácia
 }
 
-export default function Settings({ open, onClose, pref, setPref, led, toggleLed, reduceMotion, setReduceMotion, info }: Props) {
+const AMBIENT_CHOICES = [0, 2, 5, 10];
+
+export default function Settings({ open, onClose, pref, setPref, led, toggleLed, reduceMotion, setReduceMotion, ambientMin, setAmbientMin, info }: Props) {
   return (
     <>
       <div className={`scrim ${open ? 'show' : ''}`} onClick={onClose} />
@@ -30,6 +36,16 @@ export default function Settings({ open, onClose, pref, setPref, led, toggleLed,
           ))}
         </div>
         <p className="note">AUTO prepína podľa aktívneho okna na PC (SketchUp → SKP, Claude/Codex → AI). Rýchle prepnutie: potiahni prstom po hornej lište.</p>
+
+        <label>Ambient po nečinnosti</label>
+        <div className="seg">
+          {AMBIENT_CHOICES.map((v) => (
+            <button key={v} className={ambientMin === v ? 'on' : ''} onClick={() => setAmbientMin(v)}>
+              {v === 0 ? 'Vypnuté' : `${v} min`}
+            </button>
+          ))}
+        </div>
+        <p className="note">V Station sa po tomto čase bez dotyku zapnú veľké hodiny cez celú obrazovku. Dotyk ich zruší; v SKP a AI sa nezapnú.</p>
 
         <label>Spätná väzba zadnými LED</label>
         <div className="seg">
